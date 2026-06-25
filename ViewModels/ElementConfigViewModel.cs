@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
@@ -14,13 +14,16 @@ namespace GD_ControlCenter_WPF.ViewModels
     #region 辅助数据模型
 
     /// <summary> 元素周期表单体模型 </summary>
-    public class PeriodicElement
+    public partial class PeriodicElement : ObservableObject
     {
         public int AtomicNumber { get; set; }     // 原子序数
         public string Symbol { get; set; }        // 元素符号
         public int Row { get; set; }               // 所在行 (0-9)
         public int Column { get; set; }            // 所在列 (0-17)
         public string HexColor { get; set; }       // 界面显示颜色
+
+        [ObservableProperty]
+        private bool _isSelected;
 
         public PeriodicElement(int num, string symbol, int row, int col, string color)
         {
@@ -64,12 +67,6 @@ namespace GD_ControlCenter_WPF.ViewModels
         [ObservableProperty] private ObservableCollection<AnalysisConfigItem> _selectedConfigs = new();
         [ObservableProperty] private AnalysisConfigItem? _currentSelectedConfig;
 
-        // 同步仪表台显示的全局硬件参数快照
-        [ObservableProperty] private string _globalCurrent = "-";
-        [ObservableProperty] private string _globalPumpSpeed = "-";
-        [ObservableProperty] private string _globalSampleCount = "-";
-        [ObservableProperty] private string _globalSampleInterval = "-";
-
         #endregion
 
         public ElementConfigViewModel(JsonConfigService configService)
@@ -79,19 +76,6 @@ namespace GD_ControlCenter_WPF.ViewModels
             // 初始化基础数据
             InitializePeriodicTable();
             InitializeWavelengthDatabase();
-
-            // 加载当前硬件参数快照
-            RefreshGlobalSettings();
-        }
-
-        /// <summary> 从本地配置文件同步最新的硬件参数显示 </summary>
-        public void RefreshGlobalSettings()
-        {
-            var config = _configService.Load();
-            GlobalCurrent = config.LastHvCurrent.ToString();
-            GlobalPumpSpeed = config.LastPumpSpeed.ToString();
-            GlobalSampleCount = config.LastSampleCount.ToString();
-            GlobalSampleInterval = config.LastSampleInterval.ToString();
         }
 
         #region 2. 业务命令 (Commands)
@@ -102,6 +86,12 @@ namespace GD_ControlCenter_WPF.ViewModels
         {
             SelectedElementSymbol = symbol;
             AvailableWavelengths.Clear();
+
+            // 更新所有元素的选中状态
+            foreach (var element in PeriodicElements)
+            {
+                element.IsSelected = (element.Symbol == symbol);
+            }
 
             // 从数据库调取该元素的所有特征波长
             if (_wavelengthDatabase.TryGetValue(symbol, out var wls) && wls.Count > 0)
@@ -139,7 +129,8 @@ namespace GD_ControlCenter_WPF.ViewModels
         private void CommitToActiveConfigs()
         {
             if (StagedConfigs.Count == 0) return;
-            RefreshGlobalSettings(); // 提交前刷新一次参数
+            
+            var config = _configService.Load();
 
             foreach (var staged in StagedConfigs)
             {
@@ -150,8 +141,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                 {
                     ElementName = staged.ElementName,
                     Wavelength = staged.Wavelength,
-                    SampleCountText = GlobalSampleCount,
-                    SampleIntervalText = GlobalSampleInterval
+                    SampleCountText = config.LastSampleCount.ToString(),
+                    SampleIntervalText = config.LastSampleInterval.ToString()
                 });
             }
             StagedConfigs.Clear();

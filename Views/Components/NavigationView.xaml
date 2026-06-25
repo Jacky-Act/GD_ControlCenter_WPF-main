@@ -101,35 +101,6 @@
             </TabControl>
         </ScrollViewer>
 
-        <!--<StackPanel Grid.Row="1">
-            <Border BorderBrush="{DynamicResource MaterialDesignDivider}" 
-                    BorderThickness="0,1,0,0" 
-                    Margin="0,0"
-                    Opacity="0.5"/>
-
-            <Button Style="{StaticResource MaterialDesignFlatButton}"
-                    Padding="0" 
-                    Width="60" 
-                    Height="60" ToolTip="帮助"
-                    Click="HelpButton_Click">
-                <StackPanel VerticalAlignment="Center">
-                    <materialDesign:PackIcon Kind="HelpCircleOutline" HorizontalAlignment="Center" Width="24" Height="24"/>
-                    <TextBlock Text="帮助" HorizontalAlignment="Center" FontSize="11" Margin="0,4,0,0"/>
-                </StackPanel>
-            </Button>
-
-            <Button Style="{StaticResource MaterialDesignFlatButton}"
-                    Padding="0" 
-                    Width="60" 
-                    Height="60" ToolTip="设置"
-                    Click="SettingsButton_Click">
-                <StackPanel VerticalAlignment="Center">
-                    <materialDesign:PackIcon Kind="SettingsOutline" HorizontalAlignment="Center" Width="24" Height="24"/>
-                    <TextBlock Text="设置" HorizontalAlignment="Center" FontSize="11" Margin="0,4,0,0"/>
-                </StackPanel>
-            </Button>
-        </StackPanel>-->
-
         <StackPanel Grid.Row="1">
             <Border BorderBrush="{DynamicResource MaterialDesignDivider}" 
                     BorderThickness="0,1,0,0" 
