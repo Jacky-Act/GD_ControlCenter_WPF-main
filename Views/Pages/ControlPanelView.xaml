@@ -23,11 +23,11 @@
             <!-- 第一排：泵控制 + 高压电源 + 电池 -->
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="30*" />
+                    <ColumnDefinition Width="30.3*" />
                     <!-- 1. 泵控制 (Devices[1]) -->
                     <ColumnDefinition Width="58*" />
                     <!-- 2. 高压电源 (Devices[0]) -->
-                    <ColumnDefinition Width="12*" />
+                    <ColumnDefinition Width="11.7*" />
                     <!-- 3. 电池 -->
                 </Grid.ColumnDefinitions>
 
