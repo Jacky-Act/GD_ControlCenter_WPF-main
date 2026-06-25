@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using GD_ControlCenter_WPF.Models;
 using GD_ControlCenter_WPF.Services;
 
@@ -32,6 +32,11 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// 用于在不同子页面间保持 UI 布局比例的一致性。
         /// </summary>
         [ObservableProperty] private double _dashboardHeight;
+
+        /// <summary>
+        /// 缓存所有页面的 ViewModel，供前台 ItemsControl 生成并常驻 UI (空间换时间解决卡顿)。
+        /// </summary>
+        public System.Collections.Generic.List<object> AllPages { get; } = new();
 
         #endregion
 
@@ -104,6 +109,16 @@ namespace GD_ControlCenter_WPF.ViewModels
             _hvService = hvService;
             _configService = configService;
             _protocolService = protocolService;
+
+            // 为了实现界面缓存(0秒切换)，将所有主页面加入缓冲列表
+            AllPages.Add(ControlPanelVM);
+            AllPages.Add(TimeSeriesVM);
+            AllPages.Add(ElementConfigVM);
+            AllPages.Add(SampleSequenceVM);
+            AllPages.Add(AnalysisWorkstationVM);
+            AllPages.Add(DataProcessingVM);
+            AllPages.Add(ReportGenerationVM);
+            AllPages.Add(SettingsVM);
 
             // 软件启动后默认展示主控制面板
             _currentPage = ControlPanelVM;

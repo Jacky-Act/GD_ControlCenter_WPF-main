@@ -1,4 +1,4 @@
-﻿<Application x:Class="GD_ControlCenter_WPF.App"
+<Application x:Class="GD_ControlCenter_WPF.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:GD_ControlCenter_WPF"
@@ -60,6 +60,7 @@
             <helpers:BatteryStatusColorConverter x:Key="BatteryStatusColorConverter"/>
             <helpers:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <helpers:InverseBoolToVisConverter x:Key="InverseBoolToVisConverter"/>
+            <helpers:ObjectEqualityToVisibilityConverter x:Key="ObjectEqualityToVisibilityConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

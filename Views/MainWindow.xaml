@@ -1,4 +1,4 @@
-﻿<Window x:Class="GD_ControlCenter_WPF.Views.MainWindow"
+<Window x:Class="GD_ControlCenter_WPF.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -26,7 +26,26 @@
         <components:NavigationView x:Name="SideNav" Grid.Column="0" />
 
         <Border Grid.Column="1" BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="1,0,0,0">
-            <ContentControl Content="{Binding CurrentPage}" />
+            <!-- 采用 ItemsControl 实现 UI 缓存 (空间换时间)，避免频繁销毁重建导致的卡顿 -->
+            <ItemsControl ItemsSource="{Binding AllPages}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Grid />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="Visibility">
+                            <Setter.Value>
+                                <MultiBinding Converter="{StaticResource ObjectEqualityToVisibilityConverter}">
+                                    <Binding />
+                                    <Binding Path="DataContext.CurrentPage" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                </MultiBinding>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
+            </ItemsControl>
         </Border>
     </Grid>
 </Window>
