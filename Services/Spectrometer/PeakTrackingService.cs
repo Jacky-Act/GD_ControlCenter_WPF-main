@@ -106,10 +106,13 @@ namespace GD_ControlCenter_WPF.Services.Spectrometer
 
             foreach (var peak in TrackedPeaks)
             {
-                // 替换为基于 5 像素邻域（窗口大小为11）的寻峰定位
-                double realX = SpectrometerLogic.GetPeakWavelengthByPixelWindow(peak.BaseWavelength, currentData, 5);
+                // 调用算法层执行局部寻峰：在基准值附近寻找真实最高点 (X)
+                double realX = SpectrometerLogic.GetActualPeakWavelength(currentData, peak.BaseWavelength, peak.ToleranceWindow);
+
+                // 映射光强值：获取该物理位置对应的实时光强计数 (Y)
                 double realY = SpectrometerLogic.GetIntensityAtWavelength(currentData, realX);
 
+                // 更新模型属性：TrackedPeak 内部会发出 PropertyChanged 通知，从而实时更新 UI 线条位置
                 peak.CurrentWavelength = realX;
                 peak.CurrentIntensity = realY;
             }

@@ -106,11 +106,13 @@ namespace GD_ControlCenter_WPF.Services.Spectrometer
         /// </summary>
         public void StartAll()
         {
-            foreach (var device in Devices)
+            // 先全量下发指令，再统一启动，消除逐个Sleep的时序差
+            var deviceList = Devices.ToList();
+            foreach (var device in deviceList)
             {
-                device.StartContinuousMeasurement();             
-                Thread.Sleep(50);   // 物理缓冲：避免大量 USB 开始采集指令瞬间挤压总线
+                device.StartContinuousMeasurement();
             }
+            Thread.Sleep(50);
         }
 
         /// <summary>

@@ -42,14 +42,7 @@ namespace GD_ControlCenter_WPF.Services.Spectrometer.Logic
 
         #region 2. 多机光谱拼接算法 (Stitching Algorithm)
 
-        /// <summary>
-        /// 多设备光谱拼接算法。
-        /// 采用“最大值保持”策略处理重叠波长点，确保窄带尖峰信号不被平均算法削弱。
-        /// </summary>
-        /// <param name="dataCollection">待合并的光谱数据集合（来自不同物理设备）。</param>
-        /// <param name="mergeTolerance">合并容差 (单位: nm)。在此范围内的像素点被视为同一个物理坐标。</param>
-        /// <returns>拼接完成后的全局光谱数据实体。</returns>
-        public static SpectralData? PerformStitching(IEnumerable<SpectralData> dataCollection, double mergeTolerance = 0.05)
+        public static SpectralData? PerformStitching(IEnumerable<SpectralData> dataCollection, double mergeTolerance = 0.01)
         {
             if (dataCollection == null) return null;
 
@@ -91,6 +84,18 @@ namespace GD_ControlCenter_WPF.Services.Spectrometer.Logic
                 // --- 步骤 2: 物理波长排序 ---              
                 Array.Sort(_bufferWavelengths, _bufferIntensities, 0, totalLength); // 基于波长池对强度池进行联动升序排列
 
+                // 拼接段波长对齐校正（消除设备间波长微差）
+                for (int i = 1; i < totalLength; i++)
+                {
+                    double prev = _bufferWavelengths[i - 1];
+                    double curr = _bufferWavelengths[i];
+                    // 相邻波长异常跳变>1nm判定为拼接缝，强制平滑
+                    if (curr - prev > 1.0)
+                    {
+                        _bufferWavelengths[i] = prev + 0.1;
+                    }
+                }
+
                 // --- 步骤 3: 峰值保护去重 ---
                 int validCount = 0; // 慢指针：指向已处理好的有效数据末尾
 
@@ -122,8 +127,12 @@ namespace GD_ControlCenter_WPF.Services.Spectrometer.Logic
                 // --- 步骤 4: 结果输出 (实例化) ---
                 double[] finalW = new double[finalLength];
                 double[] finalI = new double[finalLength];
-                Array.Copy(_bufferWavelengths, 0, finalW, 0, finalLength);
-                Array.Copy(_bufferIntensities, 0, finalI, 0, finalLength);
+                // 逐元素赋值，避免Array.Copy浮点尾差
+                for (int i = 0; i < finalLength; i++)
+                {
+                    finalW[i] = _bufferWavelengths[i];
+                    finalI[i] = _bufferIntensities[i];
+                }
 
                 return new SpectralData(finalW, finalI, "Combined_System");
             }
@@ -234,66 +243,6 @@ namespace GD_ControlCenter_WPF.Services.Spectrometer.Logic
                 }
             }
             return data.Intensities[bestIndex];
-        }
-
-        /// <summary>
-        /// 基于像素邻域窗口的峰高度寻峰算法（对应原系统的 peak_height_8nbnalgorithm 逻辑）
-        /// </summary>
-        /// <param name="targetWavelength">特征波长中心点 (nm)</param>
-        /// <param name="data">光谱数据模型</param>
-        /// <param name="neighborCount">单侧邻域像素数，默认值为 5（即滑动窗口总宽度为 2 * neighborCount + 1）</param>
-        /// <returns>寻峰最大值在光谱数据 Intensity 数组中的绝对索引</returns>
-        public static int GetPeakIndexByPixelWindow(double targetWavelength, SpectralData data, int neighborCount = 5)
-        {
-            if (data?.Wavelengths == null || data.Intensities == null || data.Wavelengths.Length == 0)
-            {
-                return 0;
-            }
-
-            double[] wavelengths = data.Wavelengths;
-            double[] intensities = data.Intensities;
-
-            // 1. 寻找在光谱数据中最接近目标波长的像素索引
-            int closedWavelengthIndex = 0;
-            double minDiff = double.MaxValue;
-            for (int i = 0; i < wavelengths.Length; i++)
-            {
-                double diff = Math.Abs(wavelengths[i] - targetWavelength);
-                if (diff < minDiff)
-                {
-                    minDiff = diff;
-                    closedWavelengthIndex = i;
-                }
-            }
-
-            // 2. 安全边界控制：防止局部窗口超出原始光谱数组边界
-            int startIndex = Math.Max(0, closedWavelengthIndex - neighborCount);
-            int endIndex = Math.Min(intensities.Length - 1, closedWavelengthIndex + neighborCount);
-
-            // 3. 在安全窗口内检索最大强度点及其索引
-            double maxIntensity = double.MinValue;
-            int selectedIntensityIndex = closedWavelengthIndex;
-
-            for (int i = startIndex; i <= endIndex; i++)
-            {
-                if (intensities[i] > maxIntensity)
-                {
-                    maxIntensity = intensities[i];
-                    selectedIntensityIndex = i;
-                }
-            }
-
-            return selectedIntensityIndex;
-        }
-
-        /// <summary>
-        /// 配合上述寻峰算法，直接返回寻峰后的实际物理波长
-        /// </summary>
-        public static double GetPeakWavelengthByPixelWindow(double targetWavelength, SpectralData data, int neighborCount = 5)
-        {
-            if (data?.Wavelengths == null || data.Wavelengths.Length == 0) return targetWavelength;
-            int index = GetPeakIndexByPixelWindow(targetWavelength, data, neighborCount);
-            return data.Wavelengths[index];
         }
 
         #endregion
