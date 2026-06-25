@@ -13,7 +13,7 @@ using System.Windows;
  * 描述: 系统全局设置视图模型。负责管理串口通讯配置、光谱仪全局使能开关、自动点火延时参数以及各类数据导出路径的持久化。
  * 维护指南: 
  * 1. 串口通讯采用固定波特率 9600。
- * 2. 点火延时参数（IgnitionDelaySeconds）范围限制在 1.0s - 5.0s 之间，步进为 0.1s。
+ * 2. 点火延时参数（IgnitionDelaySeconds）范围限制在 0.1s - 5.0s 之间，步进为 0.1s。
  * 3. 所有的路径设置在首次为空时均会自动回退至系统桌面路径。
  * 4. 光谱仪使能切换时涉及硬件连接/断开的重型操作，已通过后台任务异步处理。
  */
@@ -189,8 +189,8 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// </summary>
         partial void OnIgnitionDelaySecondsChanged(double value)
         {
-            // 物理安全边界：1.0s - 5.0s
-            if (value < 1.0) IgnitionDelaySeconds = 1.0;
+            // 物理安全边界：0.1s - 5.0s
+            if (value < 0.1) IgnitionDelaySeconds = 0.1;
             else if (value > 5.0) IgnitionDelaySeconds = 5.0;
             else
             {
@@ -348,7 +348,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         [RelayCommand]
         private void DecreaseIgnitionDelay()
         {
-            IgnitionDelaySeconds = Math.Round(Math.Max(1.0, IgnitionDelaySeconds - 0.1), 1);
+            IgnitionDelaySeconds = Math.Round(Math.Max(0.1, IgnitionDelaySeconds - 0.1), 1);
         }
 
         #endregion
