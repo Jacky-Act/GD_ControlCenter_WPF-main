@@ -95,6 +95,9 @@ namespace GD_ControlCenter_WPF.Models.Platform3D
     /// </summary>
     public static class PlatformLimits
     {
+
+        //--------------- 1号机器 ---------------------
+
         // 软限位步进值（根据实际硬件行程定义）
         public const int MaxStepX = 15500;
         public const int MaxStepY = 7600;
@@ -106,5 +109,23 @@ namespace GD_ControlCenter_WPF.Models.Platform3D
         // 默认有效步长范围
         public const int MinValidStep = 1;
         public const int MaxValidStep = 16500;
+
+        //---------------------------------------------
+
+        //--------------- 2号机器 ---------------------
+
+        ////软限位步进值（根据实际硬件行程定义）
+        //public const int MaxStepX = 15200;
+        //public const int MaxStepY = 7600;
+        //public const int MaxStepZ = 7600;
+
+        ////2号机器没有负向行程，最低软限位设为 0
+        //public const int MinStepZ = 0;
+
+        ////默认有效步长范围
+        //public const int MinValidStep = 1;
+        //public const int MaxValidStep = 16500;
+
+        //---------------------------------------------
     }
 }

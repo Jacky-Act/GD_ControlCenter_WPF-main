@@ -211,9 +211,9 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
         {
             if (!isPositive)
             {
-                if (axis == AxisType.Z)
+                // 仅在 MinStepZ 为负数（1号机器）时启用特殊负向软限位拦截
+                if (axis == AxisType.Z && PlatformLimits.MinStepZ < 0)
                 {
-                    // 只有在收到硬件零点信号后，才执行 -2000 的软限位拦截
                     if (Status.HasReceivedZZero)
                     {
                         if (CurrentPosition[axis] - step < PlatformLimits.MinStepZ)
@@ -224,7 +224,7 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
                 }
                 else
                 {
-                    // X/Y 轴常规零点限位拦截
+                    // X/Y 轴，以及不支持负向行程的 2 号机器 Z 轴，使用常规零点限位拦截
                     if (Status.IsAtMin[axis]) return false;
                 }
             }

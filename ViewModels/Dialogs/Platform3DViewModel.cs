@@ -251,9 +251,9 @@ namespace GD_ControlCenter_WPF.ViewModels.Dialogs
 
             if (!isPositive)
             {
-                if (targetAxis == AxisType.Z)
+                // 仅在 MinStepZ 为负数（1号机器）时执行特殊 Z 轴负向范围判断
+                if (targetAxis == AxisType.Z && PlatformLimits.MinStepZ < 0)
                 {
-                    // Z 轴特殊放行逻辑：确立物理零点后，才执行 -2000 软限位判断。
                     if (_platformService.Status.HasReceivedZZero)
                     {
                         if (_platformService.CurrentPosition.Z - step < PlatformLimits.MinStepZ)
@@ -263,6 +263,7 @@ namespace GD_ControlCenter_WPF.ViewModels.Dialogs
                         }
                     }
                 }
+                // X/Y 轴，以及不支持负向行程的 2 号机器 Z 轴，走常规零点拦截提示
                 else if (_platformService.Status.IsAtMin[targetAxis])
                 {
                     CalibrationStatus = $"操作拒绝：{targetAxis} 轴已处于零点。";
