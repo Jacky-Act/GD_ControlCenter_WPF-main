@@ -1,4 +1,4 @@
-﻿using GD_ControlCenter_WPF.Models.Messages;
+using GD_ControlCenter_WPF.Models.Messages;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,6 +14,8 @@ namespace GD_ControlCenter_WPF.Services
         {
             if (!Directory.Exists(_folderPath)) Directory.CreateDirectory(_folderPath);
         }
+
+        public string GetFolderPath() => _folderPath;
 
         // --- 新增：物理删除本地所有模板文件 ---
         public void ClearAllTemplates()

@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="GD_ControlCenter_WPF.Views.Pages.SampleSequenceView"
+<UserControl x:Class="GD_ControlCenter_WPF.Views.Pages.SampleSequenceView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
@@ -20,10 +20,10 @@
         <materialDesign:Card Grid.Row="0" Margin="0,0,0,10" UniformCornerRadius="6" materialDesign:ElevationAssist.Elevation="Dp1">
             <StackPanel Orientation="Horizontal" Margin="10,5">
                 <materialDesign:PackIcon Kind="FolderOpenOutline" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <ComboBox Width="150" materialDesign:HintAssist.Hint="读取本地序列模板" ItemsSource="{Binding SavedTemplates}" SelectedItem="{Binding SelectedTemplate}" Margin="0,0,10,0"/>
-                <Button Content="加载" Style="{StaticResource MaterialDesignOutlinedButton}" Command="{Binding LoadTemplateCommand}" Margin="0,0,30,0" Height="30"/>
+                <ComboBox materialDesign:HintAssist.Hint="读取本地序列模板" ItemsSource="{Binding SavedTemplates}" SelectedItem="{Binding SelectedTemplate}" Width="150" Margin="0,0,10,0" DropDownOpened="ComboBox_DropDownOpened"/>
+                <Button Content="打开文件夹" Style="{StaticResource MaterialDesignOutlinedButton}" Command="{Binding OpenTemplateFolderCommand}" Margin="0,0,30,0" Height="30"/>
 
-                <TextBox Width="150" materialDesign:HintAssist.Hint="另存为新模板名称" Text="{Binding NewTemplateName}" Margin="0,0,10,0"/>
+                <TextBox Width="150" materialDesign:HintAssist.Hint="另存为新模板名称" Text="{Binding NewTemplateName, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,10,0"/>
                 <Button Content="保存模板" Style="{StaticResource MaterialDesignRaisedButton}" Command="{Binding SaveTemplateCommand}" Margin="0,0,30,0" Height="30"/>
 
                 <Separator Style="{StaticResource MaterialDesignLightSeparator}" Width="2" Height="30" Margin="0,0,30,0">
@@ -40,22 +40,38 @@
         <!-- 2. 批量生成模块 -->
         <materialDesign:Card Grid.Row="1" Margin="0,0,0,10" UniformCornerRadius="6" materialDesign:ElevationAssist.Elevation="Dp1" Background="#F3F4F6">
             <StackPanel Orientation="Horizontal" Margin="15,10">
-                <TextBlock Text="批量快捷建表：" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                <TextBlock Text="标准样品:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
+                <TextBox Width="50" Text="{Binding BatchStandardCount}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4"/>
 
-                <TextBlock Text="标准样品数量:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                <TextBox Width="50" Text="{Binding BatchStandardCount}" TextAlignment="Center" Margin="0,0,20,0"/>
+                <TextBlock Text="待测样品:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
+                <TextBox Width="50" Text="{Binding BatchUnknownCount}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4"/>
 
-                <TextBlock Text="待测样品数量:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                <TextBox Width="50" Text="{Binding BatchUnknownCount}" TextAlignment="Center" Margin="0,0,20,0"/>
+                <TextBlock Text="重复次数:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
+                <Grid Margin="0,0,15,0" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="-" Width="26" Height="26" Padding="0" FontSize="16" Command="{Binding DecreaseRepeatsCommand}"/>
+                    <TextBox Grid.Column="1" Text="{Binding GlobalRepeats}" TextAlignment="Center" FontSize="16" FontWeight="Bold" Margin="4,0" VerticalAlignment="Center"/>
+                    <Button Grid.Column="2" Content="+" Width="26" Height="26" Padding="0" FontSize="16" Command="{Binding IncreaseRepeatsCommand}"/>
+                </Grid>
+
+                <TextBlock Text="浓度单位:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
+                <ComboBox Width="65" ItemsSource="{Binding AvailableUnits}" SelectedItem="{Binding ConcentrationUnit}" Margin="0,0,20,0" FontSize="16" FontWeight="Bold" HorizontalContentAlignment="Center"/>
 
                 <Button Content="一键生成新序列" Style="{StaticResource MaterialDesignRaisedButton}" Command="{Binding BatchGenerateCommand}" Height="30"/>
-                <TextBlock Text="(此操作将清空当前表格)" VerticalAlignment="Center" Opacity="0.5" Margin="10,0,0,0"/>
             </StackPanel>
         </materialDesign:Card>
 
         <!-- 3. 数据表格 (支持动态列注入) -->
         <DataGrid x:Name="SequenceDataGrid" Grid.Row="2" ItemsSource="{Binding Samples}" SelectedItem="{Binding SelectedSample, Mode=TwoWay}"
-                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" materialDesign:DataGridAssist.CellPadding="12,8">
+                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" materialDesign:DataGridAssist.CellPadding="12,8"
+                  ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                  AllowDrop="True" Drop="SequenceDataGrid_Drop"
+                  PreviewMouseMove="SequenceDataGrid_PreviewMouseMove"
+                  PreviewMouseDown="SequenceDataGrid_PreviewMouseDown">
             <DataGrid.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="删除选中行" Command="{Binding DeleteRowCommand}" Foreground="IndianRed"/>
@@ -63,9 +79,9 @@
             </DataGrid.ContextMenu>
 
             <DataGrid.Columns>
-                <!-- 基础列：名称、类型、重复次数 -->
-                <DataGridTextColumn Header="样品名称" Binding="{Binding SampleName, UpdateSourceTrigger=PropertyChanged}" Width="1.5*"/>
-                <DataGridTemplateColumn Header="样品类型" Width="1*">
+                <!-- 基础列：名称、类型、状态 -->
+                <DataGridTextColumn Header="样品名称" Binding="{Binding SampleName, UpdateSourceTrigger=PropertyChanged}" Width="Auto" MinWidth="120"/>
+                <DataGridTemplateColumn Header="样品类型" Width="Auto" MinWidth="120">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <ComboBox ItemsSource="{Binding DataContext.SampleTypes, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -73,15 +89,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="重复次数" Width="80">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <ComboBox ItemsSource="{Binding DataContext.AvailableRepeats, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                      SelectedItem="{Binding Repeats, UpdateSourceTrigger=PropertyChanged}" Margin="0"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTextColumn Header="状态" Binding="{Binding Status}" IsReadOnly="True" Width="80"/>
+                <DataGridTextColumn Header="状态" Binding="{Binding Status}" IsReadOnly="True" Width="*" MinWidth="80"/>
 
                 <!-- 动态浓度列将由后台 C# 代码在此处自动注入 -->
 
@@ -90,6 +98,7 @@
 
         <!-- 4. 底部应用 -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="删除选中行" Style="{StaticResource MaterialDesignOutlinedButton}" Foreground="IndianRed" BorderBrush="IndianRed" Command="{Binding DeleteRowCommand}" Margin="0,0,10,0"/>
             <Button Content="追加空白行" Style="{StaticResource MaterialDesignOutlinedButton}" Command="{Binding AddRowCommand}" Margin="0,0,10,0"/>
             <Button Content="应用当前序列至测量库" Style="{StaticResource MaterialDesignRaisedButton}" Command="{Binding ApplySequenceCommand}" Width="200"/>
         </StackPanel>

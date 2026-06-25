@@ -1,4 +1,4 @@
-﻿/*
+/*
  * 文件名: AppConfig.cs
  * 描述: 定义软件全局运行配置模型，用于持久化存储硬件参数、实验设定及 UI 界面状态。
  * 本模型作为纯数据容器 (POCO) 支持 JSON 序列化，确保软件重启后能精准恢复上一次实验的运行上下文。
@@ -151,6 +151,26 @@ namespace GD_ControlCenter_WPF.Models
         /// 自动化实验任务的采样时间间隔（单位：秒）。
         /// </summary>
         public int LastSampleInterval { get; set; } = 1;
+
+        /// <summary>
+        /// 样品序列预设的标准样品数量。
+        /// </summary>
+        public int LastBatchStandardCount { get; set; } = 5;
+
+        /// <summary>
+        /// 样品序列预设的待测样品数量。
+        /// </summary>
+        public int LastBatchUnknownCount { get; set; } = 10;
+
+        /// <summary>
+        /// 样品序列预设的全局重复次数。
+        /// </summary>
+        public int LastSampleRepeats { get; set; } = 1;
+
+        /// <summary>
+        /// 样品序列预设的浓度单位。
+        /// </summary>
+        public string LastConcentrationUnit { get; set; } = "ppm";
 
         /// <summary>
         /// 光谱仪硬件连接全局开关。

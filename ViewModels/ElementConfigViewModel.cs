@@ -76,6 +76,18 @@ namespace GD_ControlCenter_WPF.ViewModels
             // 初始化基础数据
             InitializePeriodicTable();
             InitializeWavelengthDatabase();
+
+            WeakReferenceMessenger.Default.Register<SyncTemplateElementsMessage>(this, (r, m) =>
+            {
+                SelectedConfigs.Clear();
+                foreach (var item in m.Value)
+                {
+                    if (item.Wavelength == 0 && _wavelengthDatabase.TryGetValue(item.ElementName, out var wls) && wls.Count > 0)
+                        item.Wavelength = wls[0];
+                    SelectedConfigs.Add(item);
+                }
+                WeakReferenceMessenger.Default.Send(new ActiveConfigsChangedMessage(SelectedConfigs.ToList()));
+            });
         }
 
         #region 2. 业务命令 (Commands)

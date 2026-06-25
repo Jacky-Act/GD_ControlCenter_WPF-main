@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
@@ -164,7 +164,7 @@ namespace GD_ControlCenter_WPF.ViewModels
 
             if (matched != null)
             {
-                return matched.Config.ElementName; // 匹配成功，返回如 "Pb"
+                return $"{matched.Config.ElementName}({matched.Config.Wavelength})"; // 匹配成功，返回格式化名称
             }
             return $"峰@{peakedWavelength:F2}"; // 匹配失败，返回原始波长格式
         }
@@ -176,8 +176,8 @@ namespace GD_ControlCenter_WPF.ViewModels
         {
             if (string.IsNullOrEmpty(SelectedElement)) return 0;
 
-            // 场景 1：如果选中项是已配置的元素名 (如 "Pb")
-            var config = _elementConfigVM.SelectedConfigs.FirstOrDefault(x => x.ElementName == SelectedElement);
+            // 场景 1：如果选中项是已配置的元素名 (如 "Pb(283.31)")
+            var config = _elementConfigVM.SelectedConfigs.FirstOrDefault(x => $"{x.ElementName}({x.Wavelength})" == SelectedElement || x.ElementName == SelectedElement);
             if (config != null) return config.Wavelength;
 
             // 场景 2：如果选中项是未识别的波长字符串 (如 "峰@283.31")

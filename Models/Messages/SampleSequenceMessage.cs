@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using CommunityToolkit.Mvvm.Messaging.Messages;
 using System.Collections.Generic;
@@ -45,8 +45,12 @@ namespace GD_ControlCenter_WPF.Models.Messages
         // 拦截类型变化，触发智能重命名
         partial void OnTypeChanged(SampleType value)
         {
+            OnPropertyChanged(nameof(DisableConcentration));
             CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new SampleTypeChangedMessage(this));
         }
+
+        // 非标液不允许输入浓度
+        public bool DisableConcentration => Type != SampleType.标液;
 
         public SampleItemModel Clone()
         {

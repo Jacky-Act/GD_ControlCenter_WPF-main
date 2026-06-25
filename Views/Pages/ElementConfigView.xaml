@@ -22,11 +22,11 @@
             <!-- ================= 1. 左侧区域 ================= -->
             <Grid Grid.Column="0" Margin="5">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="6.5*"/>
+                    <RowDefinition Height="7.5*"/>
                     <!-- 上面：元素周期表 -->
                     <RowDefinition Height="Auto"/>
                     <!-- 分割线 -->
-                    <RowDefinition Height="3.5*"/>
+                    <RowDefinition Height="2.5*"/>
                     <!-- 下面：波长库与暂存区 -->
                 </Grid.RowDefinitions>
 

@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
@@ -95,7 +95,7 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         public double GetTargetWavelength()
         {
-            var config = _elementConfigVM.SelectedConfigs.FirstOrDefault(x => x.ElementName == SelectedElement);
+            var config = _elementConfigVM.SelectedConfigs.FirstOrDefault(x => $"{x.ElementName}({x.Wavelength})" == SelectedElement || x.ElementName == SelectedElement);
             return config?.Wavelength ?? 0;
         }
     }

@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging.Messages;
 using System.Collections.ObjectModel;
 using System.Xml.Linq;
@@ -56,5 +56,13 @@ namespace GD_ControlCenter_WPF.Models.Messages
     public class ActiveConfigsChangedMessage : ValueChangedMessage<List<AnalysisConfigItem>>
     {
         public ActiveConfigsChangedMessage(List<AnalysisConfigItem> value) : base(value) { }
+    }
+
+    /// <summary>
+    /// 模板加载时，同步元素配置消息。
+    /// </summary>
+    public class SyncTemplateElementsMessage : ValueChangedMessage<List<AnalysisConfigItem>>
+    {
+        public SyncTemplateElementsMessage(List<AnalysisConfigItem> value) : base(value) { }
     }
 }

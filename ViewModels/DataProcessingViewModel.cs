@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models;
@@ -99,7 +99,11 @@ namespace GD_ControlCenter_WPF.ViewModels
             WeakReferenceMessenger.Default.Register<ActiveConfigsChangedMessage>(this, (r, m) => {
                 Application.Current.Dispatcher.Invoke(() => {
                     ActiveElements.Clear();
-                    foreach (var c in m.Value) ActiveElements.Add(c.ElementName);
+                    foreach (var c in m.Value)
+                    {
+                        string name = c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})";
+                        ActiveElements.Add(name);
+                    }
                     if (ActiveElements.Count > 0 && string.IsNullOrEmpty(SelectedElement))
                         SelectedElement = ActiveElements[0];
                 });
