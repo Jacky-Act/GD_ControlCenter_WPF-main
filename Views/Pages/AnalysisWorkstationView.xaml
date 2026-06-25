@@ -1,0 +1,22 @@
+﻿<UserControl x:Class="GD_ControlCenter_WPF.Views.Pages.AnalysisWorkstationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="clr-namespace:GD_ControlCenter_WPF.Views.Pages"
+             Background="{DynamicResource MaterialDesignPaper}"
+             HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+
+    <!-- 加了 HorizontalAlignment 和 VerticalAlignment，强迫控件撑满屏幕 -->
+    <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+
+        <!-- 连续测量模式视图 -->
+        <Grid Visibility="{Binding ContinuousVisibility, FallbackValue=Visible}">
+            <pages:SampleMeasurementView DataContext="{Binding ContinuousVM}" />
+        </Grid>
+
+        <!-- 流动注射模式视图 -->
+        <Grid Visibility="{Binding FlowInjectionVisibility, FallbackValue=Collapsed}">
+            <pages:FlowInjectionView DataContext="{Binding FlowInjectionVM}" />
+        </Grid>
+
+    </Grid>
+</UserControl>

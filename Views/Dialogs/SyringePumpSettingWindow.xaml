@@ -1,0 +1,77 @@
+﻿<Window x:Class="GD_ControlCenter_WPF.Views.Dialogs.SyringePumpSettingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        Title="注射泵参数设置" 
+        Height="350" Width="420"
+        WindowStartupLocation="CenterOwner" 
+        ResizeMode="NoResize"
+        Background="{DynamicResource MaterialDesignPaper}"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,0">
+            <TextBlock Text="参数配置 - 注射泵" Style="{StaticResource MaterialDesignHeadline6TextBlock}" />
+            <Separator Margin="0,8,0,0" Style="{StaticResource MaterialDesignLightSeparator}" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" VerticalAlignment="Center">
+
+            <TextBlock Text="移动距离 (0-3000)" Style="{StaticResource MaterialDesignBody2TextBlock}" Opacity="0.6" Margin="0,0,0,2"/>
+
+            <Grid Margin="0,5,0,30">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Slider Minimum="0" Maximum="3000" 
+                        Value="{Binding TargetDistance, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource MaterialDesign3.MaterialDesignDiscreteSlider}"
+                        VerticalAlignment="Center" />
+
+                <StackPanel Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center" MinWidth="80">
+                    <TextBox Text="{Binding TargetDistance, UpdateSourceTrigger=PropertyChanged}"
+                             FontSize="28" 
+                             FontWeight="Bold"
+                             Foreground="{DynamicResource PrimaryHueMidBrush}"
+                             BorderThickness="0" 
+                             Background="Transparent"
+                             TextAlignment="Center"
+                             VerticalAlignment="Center"
+                             InputScope="Number"
+                             materialDesign:TextFieldAssist.DecorationVisibility="Collapsed"
+                             materialDesign:TextFieldAssist.TextBoxViewMargin="0" />
+                    <Border Height="2" Background="{DynamicResource PrimaryHueMidBrush}" Opacity="0.4" Margin="5,2,5,0"/>
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Text="移动方向" Style="{StaticResource MaterialDesignBody2TextBlock}" Opacity="0.6" Margin="0,0,0,8" />
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="输入" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="14" Opacity="0.8"/>
+
+                <ToggleButton Style="{StaticResource PurpleSwitchStyle}"
+                              IsChecked="{Binding IsOutput}"
+                              ToolTip="切换注射/抽取方向">
+                    <materialDesign:PackIcon Kind="ArrowLeft" RenderTransformOrigin=".5,.5" />
+                    <materialDesign:ToggleButtonAssist.OnContent>
+                        <materialDesign:PackIcon Kind="ArrowRight" />
+                    </materialDesign:ToggleButtonAssist.OnContent>
+                </ToggleButton>
+
+                <TextBlock Text="输出" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="14" Opacity="0.8"/>
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button Content="取消" IsCancel="True" Style="{StaticResource MaterialDesignFlatButton}" Margin="0,0,10,0" Width="100"/>
+            <Button Content="应用" Command="{Binding ApplyCommand}" Style="{StaticResource MaterialDesignRaisedButton}" Width="100"/>
+        </StackPanel>
+    </Grid>
+</Window>

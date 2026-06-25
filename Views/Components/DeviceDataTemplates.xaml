@@ -1,0 +1,133 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:vm="clr-namespace:GD_ControlCenter_WPF.ViewModels">
+
+    <DataTemplate DataType="{x:Type vm:HighVoltageViewModel}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" 
+                   Text="{Binding DisplayName}" 
+                   FontSize="12" 
+                   Opacity="0.6" 
+                   HorizontalAlignment="Left" 
+                   VerticalAlignment="Top"
+                   Margin="0"/>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="设置电压(V)" FontSize="11" Foreground="Black" HorizontalAlignment="Center"/>
+                    <Viewbox MaxHeight="32" Margin="2,0">
+                        <TextBlock Text="{Binding SetVoltage}" FontWeight="Bold" Foreground="{DynamicResource PurpleThemeBrush}"/>
+                    </Viewbox>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="设置电流(mA)" FontSize="11" Foreground="Black" HorizontalAlignment="Center"/>
+                    <Viewbox MaxHeight="32" Margin="2,0">
+                        <TextBlock Text="{Binding SetCurrent}" FontWeight="Bold" Foreground="{DynamicResource PurpleThemeBrush}"/>
+                    </Viewbox>
+                </StackPanel>
+
+                <Border Grid.Column="2" Width="1" Background="{DynamicResource MaterialDesignDivider}" 
+                    Margin="8,4" VerticalAlignment="Stretch" SnapsToDevicePixels="True"/>
+
+                <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                    <TextBlock Text="监控电压(V)" FontSize="11" Foreground="Black" HorizontalAlignment="Center"/>
+                    <Viewbox MaxHeight="32" Margin="2,0">
+                        <TextBlock Text="{Binding MonitorVoltage}" FontWeight="Bold" Foreground="{DynamicResource PurpleThemeBrush}"/>
+                    </Viewbox>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4" VerticalAlignment="Center">
+                    <TextBlock Text="监控电流(mA)" FontSize="11" Foreground="Black" HorizontalAlignment="Center"/>
+                    <Viewbox MaxHeight="32" Margin="2,0">
+                        <TextBlock Text="{Binding MonitorCurrent}" FontWeight="Bold" Foreground="{DynamicResource PurpleThemeBrush}"/>
+                    </Viewbox>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:PeristalticPumpViewModel}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" 
+                   Text="{Binding DisplayName}" 
+                   FontSize="12" Opacity="0.6" 
+                   HorizontalAlignment="Left" VerticalAlignment="Top"/>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="流速(mL/min)" FontSize="11" Foreground="Black" HorizontalAlignment="Center"/>
+                    <Viewbox MaxHeight="32" Margin="2,0">
+                        <TextBlock Text="{Binding CurrentFlowRate, StringFormat={}{0:F2}}" FontWeight="Bold" Foreground="{DynamicResource PurpleThemeBrush}"/>
+                    </Viewbox>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="转动方向" FontSize="11" Foreground="Black" HorizontalAlignment="Center"/>
+                    <Viewbox MaxHeight="32" Margin="2,0">
+                        <TextBlock Text="{Binding DirectionText}" FontWeight="Bold" Foreground="{DynamicResource PurpleThemeBrush}"/>
+                    </Viewbox>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:SyringePumpViewModel}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" 
+                   Text="{Binding DisplayName}" 
+                   FontSize="12" Opacity="0.6" 
+                   HorizontalAlignment="Left" VerticalAlignment="Top"/>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="设定距离(步)" FontSize="11" Foreground="Black" HorizontalAlignment="Center"/>
+                    <Viewbox MaxHeight="32" Margin="2,0">
+                        <TextBlock Text="{Binding SettingDistance}" FontWeight="Bold" Foreground="{DynamicResource PurpleThemeBrush}"/>
+                    </Viewbox>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="运行方向" FontSize="11" Foreground="Black" HorizontalAlignment="Center"/>
+                    <Viewbox MaxHeight="32" Margin="2,0">
+                        <TextBlock Text="{Binding DirectionText}" FontWeight="Bold" Foreground="{DynamicResource PurpleThemeBrush}"/>
+                    </Viewbox>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </DataTemplate>
+
+</ResourceDictionary>

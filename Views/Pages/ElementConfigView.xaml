@@ -1,0 +1,231 @@
+﻿<UserControl x:Class="GD_ControlCenter_WPF.Views.Pages.ElementConfigView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             Background="{DynamicResource MaterialDesignPaper}">
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 核心二大列布局 -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="6*" />
+                <!-- 左侧：周期表 + 波长与暂存 -->
+                <ColumnDefinition Width="4*" />
+                <!-- 右侧：参数 + 已选分析配置 -->
+            </Grid.ColumnDefinitions>
+
+            <!-- ================= 1. 左侧区域 ================= -->
+            <Grid Grid.Column="0" Margin="5">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="7.5*"/>
+                    <!-- 上面：元素周期表 -->
+                    <RowDefinition Height="2.5*"/>
+                    <!-- 下面：波长库与暂存区 -->
+                </Grid.RowDefinitions>
+
+                <!-- 上：元素周期表 -->
+                <materialDesign:Card Grid.Row="0" Margin="0,0,0,5" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2" Background="#FAFAFA">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Text=" 选 择 分 析 元 素 " Style="{StaticResource MaterialDesignSubtitle2TextBlock}" Opacity="0.8" Margin="0,0,0,8"/>
+
+                        <!-- 自适应缩放的周期表网格 -->
+                        <Viewbox Grid.Row="1" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Top">
+                            <ItemsControl ItemsSource="{Binding PeriodicElements}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Grid>
+                                            <!-- 18 族 -->
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                                <ColumnDefinition Width="38"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- 10 行 (包含中间留白的第7行) -->
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="38"/>
+                                                <RowDefinition Height="38"/>
+                                                <RowDefinition Height="38"/>
+                                                <RowDefinition Height="38"/>
+                                                <RowDefinition Height="38"/>
+                                                <RowDefinition Height="38"/>
+                                                <RowDefinition Height="38"/>
+                                                <RowDefinition Height="15"/>
+                                                <RowDefinition Height="38"/>
+                                                <RowDefinition Height="38"/>
+                                            </Grid.RowDefinitions>
+                                        </Grid>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Grid.Row" Value="{Binding Row}" />
+                                        <Setter Property="Grid.Column" Value="{Binding Column}" />
+                                        <Setter Property="Margin" Value="1.5"/>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Command="{Binding DataContext.SelectElementCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding Symbol}" Background="{Binding HexColor}" BorderThickness="0" Padding="0"
+                                                ToolTip="{Binding AtomicNumber, StringFormat='原子序数: {0}'}" materialDesign:ElevationAssist.Elevation="Dp1">
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding AtomicNumber}" FontSize="8" Foreground="#555" HorizontalAlignment="Left" Margin="2,1,0,0"/>
+                                                <TextBlock Text="{Binding Symbol}" FontSize="15" FontWeight="Bold" Foreground="Black" HorizontalAlignment="Center" Margin="0,-3,0,2"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Viewbox>
+                    </Grid>
+                </materialDesign:Card>
+
+                <!-- 下：波长推荐 与 暂存区并排 -->
+                <Grid Grid.Row="1" Margin="0,5,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="1*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <materialDesign:Card Grid.Column="0" Margin="0,0,2.5,0" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
+                        <Grid Margin="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="{Binding SelectedElementSymbol, StringFormat='[{0}] 特 征 波 长 '}" Style="{StaticResource MaterialDesignSubtitle2TextBlock}" Opacity="0.8" Margin="0,0,0,5"/>
+                            <ItemsControl Grid.Row="1" ItemsSource="{Binding AvailableWavelengths}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Command="{Binding DataContext.StageWavelengthCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" Style="{StaticResource MaterialDesignFlatButton}" HorizontalContentAlignment="Left" Margin="0,2" ToolTip="点击暂存该波长">
+                                            <StackPanel Orientation="Horizontal">
+                                                <materialDesign:PackIcon Kind="PlusCircleOutline" Foreground="{DynamicResource PrimaryHueMidBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBlock Text="{Binding StringFormat={}{0} nm}" VerticalAlignment="Center" FontSize="15"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </materialDesign:Card>
+
+                    <materialDesign:Card Grid.Column="1" Margin="2.5,0,0,0" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2" Background="#FFF8E1">
+                        <Grid Margin="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text=" 候 选 暂 存 区 " Style="{StaticResource MaterialDesignSubtitle2TextBlock}" Opacity="0.8" Foreground="#E65100" Margin="0,0,0,5"/>
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding StagedConfigs}" SelectedItem="{Binding CurrentStagedConfig, Mode=TwoWay}"
+                                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="None" Background="Transparent">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="移除选中项" Command="{Binding RemoveStagedConfigCommand}" Foreground="IndianRed">
+                                            <MenuItem.Icon>
+                                                <materialDesign:PackIcon Kind="Delete" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Binding="{Binding ElementName}" Width="Auto" FontWeight="Bold"/>
+                                    <DataGridTextColumn Binding="{Binding Wavelength, StringFormat={}{0} nm}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </materialDesign:Card>
+                </Grid>
+            </Grid>
+
+            <!-- ================= 3. 右侧区域 (原封不动) ================= -->
+            <Grid Grid.Column="1" Margin="5">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <materialDesign:Card Grid.Row="0" Margin="0,0,0,10" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2" Background="{DynamicResource PrimaryHueLightBrush}" Foreground="{DynamicResource PrimaryHueLightForegroundBrush}">
+                    <Grid Margin="15">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="仪表台硬件参数实时同步：" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <UniformGrid Grid.Row="1" Columns="4">
+                            <StackPanel>
+                                <TextBlock Text="高压(mA)" Opacity="0.8" FontSize="11"/>
+                                <TextBlock Text="{Binding GlobalCurrent}" FontSize="18" FontWeight="Bold"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="泵速(rpm)" Opacity="0.8" FontSize="11"/>
+                                <TextBlock Text="{Binding GlobalPumpSpeed}" FontSize="18" FontWeight="Bold"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="次数" Opacity="0.8" FontSize="11"/>
+                                <TextBlock Text="{Binding GlobalSampleCount}" FontSize="18" FontWeight="Bold"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="间隔(s)" Opacity="0.8" FontSize="11"/>
+                                <TextBlock Text="{Binding GlobalSampleInterval}" FontSize="18" FontWeight="Bold"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </Grid>
+                </materialDesign:Card>
+
+                <materialDesign:Card Grid.Row="1" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel>
+                            <TextBlock Text=" 最 终 已 选 分 析 配 置 " Style="{StaticResource MaterialDesignSubtitle2TextBlock}" Opacity="0.8"/>
+                            <Separator Margin="0,4,0,4" Style="{StaticResource MaterialDesignLightSeparator}"/>
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedConfigs}" SelectedItem="{Binding CurrentSelectedConfig, Mode=TwoWay}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                                  materialDesign:DataGridAssist.ColumnHeaderPadding="8" Margin="0,5,0,0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="元素" Binding="{Binding ElementName}" Width="1*"/>
+                                <DataGridTextColumn Header="波长(nm)" Binding="{Binding Wavelength}" Width="1.5*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </materialDesign:Card>
+            </Grid>
+        </Grid>
+
+        <!-- 底部控制按钮组 -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,10">
+            <Button Content="加入分析配置" Style="{StaticResource MaterialDesignRaisedButton}" Command="{Binding CommitToActiveConfigsCommand}" ToolTip="将暂存区全部转移至右侧大表" Margin="0,0,20,0" Width="150" Height="40" FontSize="16"/>
+            <Button Content="删除选中配置" Style="{StaticResource MaterialDesignOutlinedButton}" Command="{Binding RemoveFinalConfigCommand}" Foreground="IndianRed" BorderBrush="IndianRed" Height="40"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

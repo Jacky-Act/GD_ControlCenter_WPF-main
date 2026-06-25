@@ -1,0 +1,179 @@
+﻿<UserControl x:Class="GD_ControlCenter_WPF.Views.Components.NavigationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="60">
+
+    <Grid Background="{DynamicResource MaterialDesignPaper}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <TabControl x:Name="MainTabControl"
+                        materialDesign:NavigationRailAssist.ShowSelectionBackground="True"
+                        Style="{StaticResource MaterialDesignNavigationRailTabControl}"
+                        TabStripPlacement="Left"
+                        SelectionChanged="MainTabControl_SelectionChanged">
+
+                <TabControl.ItemContainerStyle>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource MaterialDesignNavigationRailTabItem}">
+                        <Setter Property="Height" Value="60" />
+                        <Setter Property="Width" Value="60" />
+                        <Setter Property="Padding" Value="0" />
+                    </Style>
+                </TabControl.ItemContainerStyle>
+
+                <!-- 0. 仪表台 (保留) -->
+                <TabItem x:Name="DashboardTab">
+                    <TabItem.Header>
+                        <StackPanel Width="52" Margin="0,8">
+                            <materialDesign:PackIcon Kind="ViewDashboard" HorizontalAlignment="Center" Width="24" Height="24"/>
+                            <TextBlock Text="仪表台" HorizontalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                </TabItem>
+
+                <!-- 1. 时序图 (保留) -->
+                <TabItem x:Name="TimeSeriesTab">
+                    <TabItem.Header>
+                        <StackPanel Width="52" Margin="0,8">
+                            <materialDesign:PackIcon Kind="ChartTimelineVariant" HorizontalAlignment="Center" Width="24" Height="24"/>
+                            <TextBlock Text="时序图" HorizontalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                </TabItem>
+
+                <!-- 2. 元素配置 (保留/调整) -->
+                <TabItem x:Name="ElementConfigTab">
+                    <TabItem.Header>
+                        <StackPanel Width="52" Margin="0,8">
+                            <materialDesign:PackIcon Kind="PeriodicTable" HorizontalAlignment="Center" Width="24" Height="24"/>
+                            <TextBlock Text="元素配置" HorizontalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                </TabItem>
+
+                <!-- 3. 样品序列 (新增) -->
+                <TabItem x:Name="SampleSequenceTab">
+                    <TabItem.Header>
+                        <StackPanel Width="52" Margin="0,8">
+                            <materialDesign:PackIcon Kind="FormatListNumbered" HorizontalAlignment="Center" Width="24" Height="24"/>
+                            <TextBlock Text="样品序列" HorizontalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                </TabItem>
+
+                <!-- 4. 测样分析 (保留，整合了连续和流动注射) -->
+                <TabItem x:Name="AnalysisWorkstationTab">
+                    <TabItem.Header>
+                        <StackPanel Width="52" Margin="0,8">
+                            <materialDesign:PackIcon Kind="TestTube" HorizontalAlignment="Center" Width="24" Height="24"/>
+                            <TextBlock Text="测样分析" HorizontalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                </TabItem>
+
+                <!-- 5. 数据处理 (替换原有的拟合曲线) -->
+                <TabItem x:Name="DataProcessingTab">
+                    <TabItem.Header>
+                        <StackPanel Width="52" Margin="0,8">
+                            <materialDesign:PackIcon Kind="DatabaseEdit" HorizontalAlignment="Center" Width="24" Height="24"/>
+                            <TextBlock Text="数据处理" HorizontalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                </TabItem>
+
+                <!-- 6. 报告生成 (新增) -->
+                <TabItem x:Name="ReportGenerationTab">
+                    <TabItem.Header>
+                        <StackPanel Width="52" Margin="0,8">
+                            <materialDesign:PackIcon Kind="FileChart" HorizontalAlignment="Center" Width="24" Height="24"/>
+                            <TextBlock Text="报告生成" HorizontalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                </TabItem>
+
+            </TabControl>
+        </ScrollViewer>
+
+        <!--<StackPanel Grid.Row="1">
+            <Border BorderBrush="{DynamicResource MaterialDesignDivider}" 
+                    BorderThickness="0,1,0,0" 
+                    Margin="0,0"
+                    Opacity="0.5"/>
+
+            <Button Style="{StaticResource MaterialDesignFlatButton}"
+                    Padding="0" 
+                    Width="60" 
+                    Height="60" ToolTip="帮助"
+                    Click="HelpButton_Click">
+                <StackPanel VerticalAlignment="Center">
+                    <materialDesign:PackIcon Kind="HelpCircleOutline" HorizontalAlignment="Center" Width="24" Height="24"/>
+                    <TextBlock Text="帮助" HorizontalAlignment="Center" FontSize="11" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Button>
+
+            <Button Style="{StaticResource MaterialDesignFlatButton}"
+                    Padding="0" 
+                    Width="60" 
+                    Height="60" ToolTip="设置"
+                    Click="SettingsButton_Click">
+                <StackPanel VerticalAlignment="Center">
+                    <materialDesign:PackIcon Kind="SettingsOutline" HorizontalAlignment="Center" Width="24" Height="24"/>
+                    <TextBlock Text="设置" HorizontalAlignment="Center" FontSize="11" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>-->
+
+        <StackPanel Grid.Row="1">
+            <Border BorderBrush="{DynamicResource MaterialDesignDivider}" 
+                    BorderThickness="0,1,0,0" 
+                    Margin="0,0"
+                    Opacity="0.5"/>
+
+            <TabControl x:Name="BottomTabControl"
+                        materialDesign:NavigationRailAssist.ShowSelectionBackground="True"
+                        Style="{StaticResource MaterialDesignNavigationRailTabControl}"
+                        TabStripPlacement="Left"
+                        SelectionChanged="BottomTabControl_SelectionChanged"
+                        Background="Transparent"
+                        Padding="0">
+
+                <TabControl.ItemContainerStyle>
+                    <Style TargetType="TabItem" BasedOn="{StaticResource MaterialDesignNavigationRailTabItem}">
+                        <Setter Property="Height" Value="60" />
+                        <Setter Property="Width" Value="60" />
+                        <Setter Property="Padding" Value="0" />
+                    </Style>
+                </TabControl.ItemContainerStyle>
+
+                <TabItem x:Name="HelpTab" ToolTip="帮助">
+                    <TabItem.Header>
+                        <StackPanel Width="52" Margin="0,8">
+                            <materialDesign:PackIcon Kind="HelpCircleOutline" HorizontalAlignment="Center" Width="24" Height="24"/>
+                            <TextBlock Text="帮助" HorizontalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                    <Border />
+                </TabItem>
+
+                <TabItem x:Name="SettingsTab" ToolTip="设置">
+                    <TabItem.Header>
+                        <StackPanel Width="52" Margin="0,8">
+                            <materialDesign:PackIcon Kind="SettingsOutline" HorizontalAlignment="Center" Width="24" Height="24"/>
+                            <TextBlock Text="设置" HorizontalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                    <Border />
+                </TabItem>
+            </TabControl>
+        </StackPanel>
+
+        <Border Grid.RowSpan="2" BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="0,0,1,0" HorizontalAlignment="Right"/>
+    </Grid>
+</UserControl>

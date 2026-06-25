@@ -1,0 +1,65 @@
+﻿<Application x:Class="GD_ControlCenter_WPF.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:GD_ControlCenter_WPF"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:vm="clr-namespace:GD_ControlCenter_WPF.ViewModels"            
+             xmlns:pages="clr-namespace:GD_ControlCenter_WPF.Views.Pages"
+             xmlns:helpers="clr-namespace:GD_ControlCenter_WPF.Helpers"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <materialDesign:BundledTheme BaseTheme="Light" PrimaryColor="DeepPurple" SecondaryColor="Lime" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml" />
+                <ResourceDictionary Source="/Views/Components/DeviceDataTemplates.xaml" />
+                <ResourceDictionary Source="/Views/Components/GlobalStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <DataTemplate DataType="{x:Type vm:ControlPanelViewModel}">
+                <pages:ControlPanelView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:TimeSeriesViewModel}">
+                <pages:TimeSeriesView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:ElementConfigViewModel}">
+                <pages:ElementConfigView />
+            </DataTemplate>
+            
+            <DataTemplate DataType="{x:Type vm:SampleSequenceViewModel}">
+                <pages:SampleSequenceView />
+            </DataTemplate>
+            
+            <DataTemplate DataType="{x:Type vm:AnalysisWorkstationViewModel}">
+                <pages:AnalysisWorkstationView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:SampleMeasurementViewModel}">
+                <pages:SampleMeasurementView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:FlowInjectionViewModel}">
+                <pages:SampleMeasurementView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+                <pages:SettingsView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:DataProcessingViewModel}">
+                <pages:DataProcessingView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:ReportGenerationViewModel}">
+                <pages:ReportGenerationView />
+            </DataTemplate>
+
+            <helpers:BatteryWidthConverter x:Key="BatteryWidthConverter"/>
+            <helpers:BatteryStatusColorConverter x:Key="BatteryStatusColorConverter"/>
+            <helpers:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <helpers:InverseBoolToVisConverter x:Key="InverseBoolToVisConverter"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
