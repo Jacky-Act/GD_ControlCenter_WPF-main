@@ -9,7 +9,7 @@ using System.Timers;
  * 文件名: BatteryService.cs
  * 描述: 电池业务服务类，负责周期性轮询电池状态，并根据回传电流矢量判定充电/放电工况。
  * 内部集成看门狗机制与双优先查询逻辑，确保在复杂电磁环境下电池状态更新的可靠性与实时性。
- * 维护指南: 默认轮询间隔 30s，离线判定阈值 100s；ParseBatteryData 方法中的电流判定逻辑需与 BMS 通讯协议文档保持高度一致。
+ * 维护指南: 初始轮询间隔 3s，收到信号后默认轮询30秒，离线判定阈值 60s；ParseBatteryData 方法中的电流判定逻辑需与 BMS 通讯协议文档保持高度一致。
  */
 
 namespace GD_ControlCenter_WPF.Services
@@ -37,7 +37,12 @@ namespace GD_ControlCenter_WPF.Services
         /// <summary>
         /// 判定通讯离线的最大允许时长（秒）。
         /// </summary>
-        private const int MaxOfflineSeconds = 100;
+        private const int MaxOfflineSeconds = 60;
+
+        /// <summary>
+        /// 快查模式下的查询次数计数器。
+        /// </summary>
+        private int _rapidQueryCount = 0;
 
         /// <summary>
         /// 当电池电量、连接状态或充电工况发生变化时触发。
@@ -67,12 +72,11 @@ namespace GD_ControlCenter_WPF.Services
         {
             _serialPortService = serialPortService;
 
-            // 初始化轮询定时器：设为 30s 间隔
-            _pollingTimer = new System.Timers.Timer(30000);
+            // 初始化轮询定时器：设为 3s 间隔（快查模式）
+            _pollingTimer = new System.Timers.Timer(3000);
             _pollingTimer.Elapsed += OnPollingTimerElapsed;
             _pollingTimer.AutoReset = true;
 
-            // 订阅经过协议解析后的电池标准数据帧
             WeakReferenceMessenger.Default.Register<BatteryFrameMessage>(this, (r, m) =>
             {
                 ParseBatteryData(m.Value);
@@ -81,26 +85,18 @@ namespace GD_ControlCenter_WPF.Services
 
         /// <summary>
         /// 开启电池状态监控任务。
-        /// 立即执行首次查询，并在 1 秒后进行二次补偿查询以确保初始化成功。
+        /// 默认以快查模式（3秒间隔）启动。
         /// </summary>
         public void Start()
         {
             if (!_pollingTimer.Enabled)
             {
+                _pollingTimer.Interval = 3000;
+                _rapidQueryCount = 0;
                 _pollingTimer.Start();
 
-                // 执行启动后的即时查询
+                // 执行首次查询
                 SendQuery();
-
-                // 执行 1s 后的补偿查询（异步非阻塞）
-                Task.Run(async () =>
-                {
-                    await Task.Delay(1000);
-                    if (_pollingTimer.Enabled)
-                    {
-                        SendQuery();
-                    }
-                });
             }
         }
 
@@ -114,15 +110,32 @@ namespace GD_ControlCenter_WPF.Services
         }
 
         /// <summary>
-        /// 定时器周期回调：检测是否通讯超时并下发轮询指令。
+        /// 定时器周期回调：处理双速率轮询与超时离线逻辑。
         /// </summary>
         private void OnPollingTimerElapsed(object? sender, ElapsedEventArgs e)
         {
-            // 看门狗逻辑：若超时未收到数据，则判定为离线
-            if (IsOnline && (DateTime.Now - _lastReceivedTime).TotalSeconds > MaxOfflineSeconds)
+            if (_pollingTimer.Interval == 3000)
             {
-                IsOnline = false;
-                StatusUpdated?.Invoke(this, EventArgs.Empty);
+                _rapidQueryCount++;
+
+                // 3秒快查累计20次（约60秒）无反馈，停止查询并抛出离线状态
+                if (_rapidQueryCount > 20)
+                {
+                    Stop();
+                    StatusUpdated?.Invoke(this, EventArgs.Empty);
+                    return;
+                }
+            }
+            else
+            {
+                // 30秒慢查模式：若超过60秒未收到有效数据，降级回快查模式
+                if ((DateTime.Now - _lastReceivedTime).TotalSeconds >= MaxOfflineSeconds)
+                {
+                    _pollingTimer.Interval = 3000;
+                    _rapidQueryCount = 1; // 算作新一轮快查的第一次
+                    IsOnline = false;
+                    StatusUpdated?.Invoke(this, EventArgs.Empty);
+                }
             }
 
             SendQuery();
@@ -139,44 +152,39 @@ namespace GD_ControlCenter_WPF.Services
 
         /// <summary>
         /// 电池报文解析核心逻辑。
-        /// 提取电量百分比、计算电流矢量方向并判定充电状态。
         /// </summary>
-        /// <param name="frame">由解析服务识别出的 13 字节电池标准帧。</param>
         private void ParseBatteryData(byte[] frame)
         {
-            // 协议安全检查
             if (frame.Length == 13 && (FunctionCode)frame[3] == FunctionCode.Battery)
             {
                 try
                 {
-                    // 提取电流数据段（索引 6,7）
                     byte currentHigh = frame[6];
                     byte currentLow = frame[7];
-
-                    // 提取电量百分比（索引 8）
                     Percentage = frame[8];
 
-                    // 电流状态判定逻辑：
-                    // 1. 最高位为 1 代表电流为负（放电）
-                    // 2. 电流为 0 代表静置
                     bool isNegativeOrZero = (currentHigh >> 7 == 1) || (currentHigh == 0 && currentLow == 0);
                     IsCharging = !isNegativeOrZero;
 
-                    // 更新通讯
+                    // 更新通讯状态
                     IsOnline = true;
                     _lastReceivedTime = DateTime.Now;
 
-                    // 通知 UI 或 ViewModel 数据已刷新
+                    // 收到反馈，切换为 30 秒慢查模式
+                    if (_pollingTimer.Interval != 30000)
+                    {
+                        _pollingTimer.Interval = 30000;
+                        _rapidQueryCount = 0;
+                    }
+
                     StatusUpdated?.Invoke(this, EventArgs.Empty);
                 }
                 catch (Exception ex)
                 {
-                    // 调试捕获：工控现场异常记录。注：上线后建议替换为日志系统。
                     System.Windows.MessageBox.Show($"电池解析异常: {ex.Message}\n{ex.StackTrace}");
                 }
             }
         }
-
         /// <summary>
         /// 释放资源，注销消息订阅并销毁定时器。
         /// </summary>
