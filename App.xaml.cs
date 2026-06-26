@@ -1,4 +1,4 @@
-﻿using GD_ControlCenter_WPF.Services;
+using GD_ControlCenter_WPF.Services;
 using GD_ControlCenter_WPF.Services.Platform3D;
 using GD_ControlCenter_WPF.Services.Spectrometer;
 using GD_ControlCenter_WPF.ViewModels;
@@ -46,6 +46,7 @@ namespace GD_ControlCenter_WPF
 
             // 1. 注册核心基础服务 (单例)
             services.AddSingleton<JsonConfigService>();
+            services.AddSingleton<ElementDatabaseService>();
             services.AddSingleton<ISerialPortService, SerialPortService>();
             services.AddSingleton<ProtocolService>();
 

@@ -4,6 +4,9 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              Background="{DynamicResource MaterialDesignPaper}"
              Loaded="UserControl_Loaded">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -84,7 +87,7 @@
                 <DataGridTemplateColumn Header="样品类型" Width="Auto" MinWidth="120">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox ItemsSource="{Binding DataContext.SampleTypes, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            <ComboBox ItemsSource="{Binding DataContext.AvailableSampleTypes, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                       SelectedItem="{Binding Type, UpdateSourceTrigger=PropertyChanged}" Margin="0"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
@@ -98,6 +101,11 @@
 
         <!-- 4. 底部应用 -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <TextBlock Text="当前序列已应用至测量库" 
+                       Foreground="ForestGreen" 
+                       VerticalAlignment="Center" 
+                       Margin="0,0,15,0"
+                       Visibility="{Binding IsSequenceApplied, Converter={StaticResource BoolToVis}}"/>
             <Button Content="删除选中行" Style="{StaticResource MaterialDesignOutlinedButton}" Foreground="IndianRed" BorderBrush="IndianRed" Command="{Binding DeleteRowCommand}" Margin="0,0,10,0"/>
             <Button Content="追加空白行" Style="{StaticResource MaterialDesignOutlinedButton}" Command="{Binding AddRowCommand}" Margin="0,0,10,0"/>
             <Button Content="应用当前序列至测量库" Style="{StaticResource MaterialDesignRaisedButton}" Command="{Binding ApplySequenceCommand}" Width="200"/>

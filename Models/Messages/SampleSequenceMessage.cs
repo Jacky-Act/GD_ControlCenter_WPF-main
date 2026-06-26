@@ -83,4 +83,10 @@ namespace GD_ControlCenter_WPF.Models.Messages
     {
         public RebuildColumnsMessage(List<string> value) : base(value) { }
     }
+
+    // 新增：全局页面导航消息
+    public class NavigateMessage : ValueChangedMessage<string>
+    {
+        public NavigateMessage(string value) : base(value) { }
+    }
 }

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using GD_ControlCenter_WPF.Models;
 using GD_ControlCenter_WPF.Models.Messages;
 using GD_ControlCenter_WPF.Services;
 using System.Collections.Generic;
@@ -31,12 +32,13 @@ namespace GD_ControlCenter_WPF.ViewModels
         }
     }
 
-    /// <summary> 待选区的暂存项 </summary>
-    public partial class StagedConfigItem : ObservableObject
+    /// <summary> 波长包装类，支持在界面双向绑定编辑 </summary>
+    public partial class WavelengthWrapper : ObservableObject
     {
-        [ObservableProperty] private string _elementName = string.Empty;
-        [ObservableProperty] private double _wavelength;
+        [ObservableProperty] private double _value;
+        public WavelengthWrapper(double val) { Value = val; }
     }
+
     #endregion
 
     /// <summary>
@@ -45,23 +47,25 @@ namespace GD_ControlCenter_WPF.ViewModels
     public partial class ElementConfigViewModel : ObservableObject
     {
         private readonly JsonConfigService _configService;
+        private readonly ElementDatabaseService _elementDbService;
 
         #region 1. 界面绑定集合与属性
 
         // 元素周期表展示集合
         public ObservableCollection<PeriodicElement> PeriodicElements { get; } = new();
 
-        // 核心波长数据库 (由 PDF 数据驱动)
-        private readonly Dictionary<string, List<double>> _wavelengthDatabase = new();
-
         [ObservableProperty] private string _selectedElementSymbol = "未选择";
 
-        // 当前选中元素对应的可用波长列表
-        [ObservableProperty] private ObservableCollection<double> _availableWavelengths = new();
+        // 当前选中元素的参数
+        [ObservableProperty] private ObservableCollection<WavelengthWrapper> _currentWavelengths = new();
+        [ObservableProperty] private int _currentIntegrationTime = 200;
+        [ObservableProperty] private int _currentAveragingCount = 1;
+        [ObservableProperty] private ObservableCollection<string> _currentFittingCurves = new();
+        [ObservableProperty] private string _selectedFittingCurve = "测量校准曲线";
 
-        // 中间下方的暂存候选区（篮子）
-        [ObservableProperty] private ObservableCollection<StagedConfigItem> _stagedConfigs = new();
-        [ObservableProperty] private StagedConfigItem? _currentStagedConfig;
+        // 编辑状态
+        [ObservableProperty] private bool _isWavelengthEditing;
+        [ObservableProperty] private bool _isParameterEditing;
 
         // 右侧最终已选的分析配置列表（正式生效）
         [ObservableProperty] private ObservableCollection<AnalysisConfigItem> _selectedConfigs = new();
@@ -69,21 +73,33 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         #endregion
 
-        public ElementConfigViewModel(JsonConfigService configService)
+        public ElementConfigViewModel(JsonConfigService configService, ElementDatabaseService elementDbService)
         {
             _configService = configService;
+            _elementDbService = elementDbService;
 
             // 初始化基础数据
             InitializePeriodicTable();
-            InitializeWavelengthDatabase();
 
             WeakReferenceMessenger.Default.Register<SyncTemplateElementsMessage>(this, (r, m) =>
             {
                 SelectedConfigs.Clear();
+                var db = _elementDbService.Load();
+
                 foreach (var item in m.Value)
                 {
-                    if (item.Wavelength == 0 && _wavelengthDatabase.TryGetValue(item.ElementName, out var wls) && wls.Count > 0)
-                        item.Wavelength = wls[0];
+                    if (db.Elements.TryGetValue(item.ElementName, out var config))
+                    {
+                        if (item.Wavelength == 0 && config.Wavelengths.Count > 0)
+                            item.Wavelength = config.Wavelengths[0].Wavelength;
+                        
+                        item.IntegrationTime = config.IntegrationTime;
+                        item.AveragingCount = config.AveragingCount;
+                        if (config.FittingCurves.Count > 0)
+                        {
+                            item.FittingCurve = config.FittingCurves[0];
+                        }
+                    }
                     SelectedConfigs.Add(item);
                 }
                 WeakReferenceMessenger.Default.Send(new ActiveConfigsChangedMessage(SelectedConfigs.ToList()));
@@ -96,8 +112,16 @@ namespace GD_ControlCenter_WPF.ViewModels
         [RelayCommand]
         private void SelectElement(string symbol)
         {
+            if (IsWavelengthEditing || IsParameterEditing)
+            {
+                var res = MessageBox.Show("您有未保存的修改，是否确认放弃并切换元素？", "提示", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (res != MessageBoxResult.Yes) return;
+                
+                IsWavelengthEditing = false;
+                IsParameterEditing = false;
+            }
+
             SelectedElementSymbol = symbol;
-            AvailableWavelengths.Clear();
 
             // 更新所有元素的选中状态
             foreach (var element in PeriodicElements)
@@ -105,67 +129,82 @@ namespace GD_ControlCenter_WPF.ViewModels
                 element.IsSelected = (element.Symbol == symbol);
             }
 
-            // 从数据库调取该元素的所有特征波长
-            if (_wavelengthDatabase.TryGetValue(symbol, out var wls) && wls.Count > 0)
+            LoadElementConfig(symbol);
+        }
+
+        private void LoadElementConfig(string symbol)
+        {
+            var db = _elementDbService.Load();
+            if (db.Elements.TryGetValue(symbol, out var config))
             {
-                foreach (var w in wls) AvailableWavelengths.Add(w);
+                CurrentWavelengths.Clear();
+                foreach (var w in config.Wavelengths)
+                {
+                    CurrentWavelengths.Add(new WavelengthWrapper(w.Wavelength));
+                }
+                CurrentIntegrationTime = config.IntegrationTime;
+                CurrentAveragingCount = config.AveragingCount;
+                
+                CurrentFittingCurves.Clear();
+                foreach (var curve in config.FittingCurves)
+                {
+                    CurrentFittingCurves.Add(curve);
+                }
+                if (CurrentFittingCurves.Count > 0) SelectedFittingCurve = CurrentFittingCurves[0];
             }
             else
             {
-                MessageBox.Show($"谱库中暂无【{symbol}】元素的特征波长数据。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                // 如果库里没有，给个默认空状态
+                CurrentWavelengths.Clear();
+                CurrentIntegrationTime = 200;
+                CurrentAveragingCount = 1;
+                CurrentFittingCurves.Clear();
+                CurrentFittingCurves.Add("测量校准曲线");
+                SelectedFittingCurve = "测量校准曲线";
             }
         }
 
-        /// <summary> 将选中的波长加入中间暂存区 </summary>
+        /// <summary> 点击波长加入分析配置 </summary>
         [RelayCommand]
-        private void StageWavelength(double wavelength)
+        private void AddWavelengthToActive(double wavelength)
         {
+            if (IsWavelengthEditing) return; // 编辑模式下不能添加
             if (SelectedElementSymbol == "未选择") return;
 
-            // 防止重复添加同一元素的同一波长
-            if (!StagedConfigs.Any(x => x.ElementName == SelectedElementSymbol && x.Wavelength == wavelength))
-            {
-                StagedConfigs.Add(new StagedConfigItem { ElementName = SelectedElementSymbol, Wavelength = wavelength });
-            }
-        }
-
-        /// <summary> 从暂存区移除 </summary>
-        [RelayCommand]
-        private void RemoveStagedConfig()
-        {
-            if (CurrentStagedConfig != null) StagedConfigs.Remove(CurrentStagedConfig);
-        }
-
-        /// <summary> 核心：将暂存区所有项提交至最终分析配置，并广播给“样品序列”模块 </summary>
-        [RelayCommand]
-        private void CommitToActiveConfigs()
-        {
-            if (StagedConfigs.Count == 0) return;
-            
             var config = _configService.Load();
 
-            foreach (var staged in StagedConfigs)
+            // 查重
+            if (SelectedConfigs.Any(x => x.ElementName == SelectedElementSymbol && x.Wavelength == wavelength)) return;
+
+            // 曲线类型冲突拦截：要么都选“测量校准曲线”，要么都选已保存的曲线
+            if (SelectedConfigs.Count > 0)
             {
-                // 最终名单查重
-                if (SelectedConfigs.Any(x => x.ElementName == staged.ElementName && x.Wavelength == staged.Wavelength)) continue;
-
-                SelectedConfigs.Add(new AnalysisConfigItem
+                bool isNewCurveSaved = SelectedFittingCurve != "测量校准曲线";
+                bool isExistingCurveSaved = SelectedConfigs[0].FittingCurve != "测量校准曲线";
+                
+                if (isNewCurveSaved != isExistingCurveSaved)
                 {
-                    ElementName = staged.ElementName,
-                    Wavelength = staged.Wavelength,
-                    SampleCountText = config.LastSampleCount.ToString(),
-                    SampleIntervalText = config.LastSampleInterval.ToString()
-                });
+                    MessageBox.Show("当前选中的拟合曲线类型与已加入的元素曲线类型冲突！\n\n规则限制：要么所有元素都选择“测量校准曲线”，要么所有元素都选择已保存的曲线。请修改当前元素的拟合曲线或清空已有配置后再试。", "添加拦截", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
             }
-            StagedConfigs.Clear();
 
-            // 【跨模块通讯】：发送消息通知“样品序列”和“测样分析”页面更新表头和配置
+            SelectedConfigs.Add(new AnalysisConfigItem
+            {
+                ElementName = SelectedElementSymbol,
+                Wavelength = wavelength,
+                SampleCountText = config.LastSampleCount.ToString(),
+                SampleIntervalText = config.LastSampleInterval.ToString(),
+                IntegrationTime = CurrentIntegrationTime,
+                AveragingCount = CurrentAveragingCount,
+                FittingCurve = SelectedFittingCurve
+            });
+
             WeakReferenceMessenger.Default.Send(new ActiveConfigsChangedMessage(SelectedConfigs.ToList()));
         }
 
-        /// <summary> 从最终配置中删除某项 </summary>
         [RelayCommand]
-        private void RemoveFinalConfig()
+        private void RemoveSelectedConfig()
         {
             if (CurrentSelectedConfig != null)
             {
@@ -176,75 +215,108 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         #endregion
 
-        #region 3. 谱线数据库初始化 (由 PDF 数据驱动)
+        #region 编辑相关命令
 
-        private void InitializeWavelengthDatabase()
+        [RelayCommand]
+        private void ToggleWavelengthEdit()
         {
-            // 按照 PDF 提供的波长进行录入 (部分示例，已涵盖 PDF 核心数据)
-            _wavelengthDatabase["Sn"] = new List<double> { 242.95, 236.48, 359.26, 442.43 };
-            _wavelengthDatabase["Sr"] = new List<double> { 460.77, 242.81 };
-            _wavelengthDatabase["Ta"] = new List<double> { 271.47, 255.94 };
-            _wavelengthDatabase["Tb"] = new List<double> { 432.65, 390.14 };
-            _wavelengthDatabase["Te"] = new List<double> { 214.30, 225.90 };
-            _wavelengthDatabase["Ti"] = new List<double> { 364.27, 399.86 };
-            _wavelengthDatabase["Tl"] = new List<double> { 377.60, 276.78 };
-            _wavelengthDatabase["U"] = new List<double> { 351.46, 415.40 };
-            _wavelengthDatabase["V"] = new List<double> { 318.39, 437.92 };
-            _wavelengthDatabase["W"] = new List<double> { 255.14, 265.65 };
-            _wavelengthDatabase["Y"] = new List<double> { 407.74, 410.24 };
-            _wavelengthDatabase["Yb"] = new List<double> { 398.80, 346.44 };
-            _wavelengthDatabase["Zn"] = new List<double> { 214.03, 213.09 };
-            _wavelengthDatabase["Zr"] = new List<double> { 360.12, 301.18 };
-            _wavelengthDatabase["Ag"] = new List<double> { 328.96 };
-            _wavelengthDatabase["As"] = new List<double> { 338.81, 228.20, 193.69 };
-            _wavelengthDatabase["Al"] = new List<double> { 309.27, 396.15 };
-            _wavelengthDatabase["Au"] = new List<double> { 242.79, 267.59 };
-            _wavelengthDatabase["B"] = new List<double> { 249.68, 249.77 };
-            _wavelengthDatabase["Ba"] = new List<double> { 455.40 };
-            _wavelengthDatabase["Be"] = new List<double> { 234.86 };
-            _wavelengthDatabase["Bi"] = new List<double> { 313.04 };
-            _wavelengthDatabase["Ca"] = new List<double> { 423.28, 422.81 };
-            _wavelengthDatabase["Co"] = new List<double> { 240.72, 242.49 };
-            _wavelengthDatabase["Cd"] = new List<double> { 228.78, 361.05 };
-            _wavelengthDatabase["Cr"] = new List<double> { 357.56, 359.35 };
-            _wavelengthDatabase["Cs"] = new List<double> { 852.30, 894.35 };
-            _wavelengthDatabase["Cu"] = new List<double> { 324.75, 327.39 };
-            _wavelengthDatabase["Pd"] = new List<double> { 344.14, 340.45 };
-            _wavelengthDatabase["Pr"] = new List<double> { 390.84, 414.31 };
-            _wavelengthDatabase["Pt"] = new List<double> { 265.95, 214.42 };
-            _wavelengthDatabase["Rb"] = new List<double> { 780.60, 795.10 };
-            _wavelengthDatabase["Re"] = new List<double> { 204.90, 228.75 };
-            _wavelengthDatabase["Rh"] = new List<double> { 437.50, 339.68 };
-            _wavelengthDatabase["Ru"] = new List<double> { 349.89, 372.80 };
-            _wavelengthDatabase["Sb"] = new List<double> { 231.10, 206.83 };
-            _wavelengthDatabase["Se"] = new List<double> { 361.38, 363.07, 196.09, 203.99 };
-            _wavelengthDatabase["Si"] = new List<double> { 251.61, 251.43 };
-            _wavelengthDatabase["K"] = new List<double> { 766.49, 766.95 };
-            _wavelengthDatabase["La"] = new List<double> { 333.75, 379.47 };
-            _wavelengthDatabase["Li"] = new List<double> { 670.78, 670.95 };
-            _wavelengthDatabase["Lu"] = new List<double> { 261.54, 296.33 };
-            _wavelengthDatabase["Mg"] = new List<double> { 285.63, 518.27 };
-            _wavelengthDatabase["Mn"] = new List<double> { 279.48, 279.96 };
-            _wavelengthDatabase["Mo"] = new List<double> { 313.26, 317.04 };
-            _wavelengthDatabase["Na"] = new List<double> { 589.38, 589.59 };
-            _wavelengthDatabase["Nb"] = new List<double> { 309.42, 316.34 };
-            _wavelengthDatabase["Nd"] = new List<double> { 401.23, 430.36 };
-            _wavelengthDatabase["Ni"] = new List<double> { 341.63, 352.88 };
-            _wavelengthDatabase["Os"] = new List<double> { 225.50, 305.86 };
-            _wavelengthDatabase["Pb"] = new List<double> { 368.78, 406.08 };
-            _wavelengthDatabase["Dy"] = new List<double> { 353.17, 394.47 };
-            _wavelengthDatabase["Er"] = new List<double> { 337.27, 349.91 };
-            _wavelengthDatabase["Eu"] = new List<double> { 381.96, 412.97 };
-            _wavelengthDatabase["Fe"] = new List<double> { 248.72, 252.28 };
-            _wavelengthDatabase["Ga"] = new List<double> { 294.36, 417.21 };
-            _wavelengthDatabase["Gd"] = new List<double> { 342.25, 336.22 };
-            _wavelengthDatabase["Ge"] = new List<double> { 265.16, 209.43 };
-            _wavelengthDatabase["Hf"] = new List<double> { 339.98, 277.33 };
-            _wavelengthDatabase["Hg"] = new List<double> { 253.65, 404.66 };
-            _wavelengthDatabase["Ho"] = new List<double> { 345.60, 339.89 };
-            _wavelengthDatabase["In"] = new List<double> { 451.10, 230.60 };
-            _wavelengthDatabase["Ir"] = new List<double> { 224.27, 212.68 };
+            if (SelectedElementSymbol == "未选择") return;
+
+            if (IsWavelengthEditing)
+            {
+                var res = MessageBox.Show("确定要保存对波长的修改吗？", "保存确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (res == MessageBoxResult.Yes)
+                {
+                    SaveCurrentElementToDb();
+                    IsWavelengthEditing = false;
+                }
+                else
+                {
+                    // 回滚
+                    LoadElementConfig(SelectedElementSymbol);
+                    IsWavelengthEditing = false;
+                }
+            }
+            else
+            {
+                IsWavelengthEditing = true;
+            }
         }
+
+        [RelayCommand]
+        private void AddNewWavelength()
+        {
+            // 添加新波长交互（在UI层绑定到ViewModel或在此处理简易逻辑）
+            // 在实际WPF中，可以通过弹窗输入。这里我们先添加一个默认的0.0，让用户在原位编辑。
+            CurrentWavelengths.Add(new WavelengthWrapper(0.0));
+        }
+
+        [RelayCommand]
+        private void ToggleParameterEdit()
+        {
+            if (SelectedElementSymbol == "未选择") return;
+
+            if (IsParameterEditing)
+            {
+                var res = MessageBox.Show("确定要保存对测样参数的修改吗？", "保存确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (res == MessageBoxResult.Yes)
+                {
+                    SaveCurrentElementToDb();
+                    IsParameterEditing = false;
+                }
+                else
+                {
+                    // 回滚
+                    LoadElementConfig(SelectedElementSymbol);
+                    IsParameterEditing = false;
+                }
+            }
+            else
+            {
+                IsParameterEditing = true;
+            }
+        }
+
+        [RelayCommand]
+        private void DeleteFittingCurve(string curveName)
+        {
+            if (curveName == "测量校准曲线")
+            {
+                MessageBox.Show("【测量校准曲线】为系统默认必须项，不可删除！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var res = MessageBox.Show($"确定要删除拟合曲线【{curveName}】吗？", "删除确认", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (res == MessageBoxResult.Yes)
+            {
+                CurrentFittingCurves.Remove(curveName);
+                if (SelectedFittingCurve == curveName && CurrentFittingCurves.Count > 0)
+                {
+                    SelectedFittingCurve = CurrentFittingCurves[0];
+                }
+                SaveCurrentElementToDb(); // 立即保存
+            }
+        }
+
+        private void SaveCurrentElementToDb()
+        {
+            var db = _elementDbService.Load();
+            
+            var config = new ElementConfig
+            {
+                IntegrationTime = CurrentIntegrationTime,
+                AveragingCount = CurrentAveragingCount,
+                FittingCurves = CurrentFittingCurves.ToList(),
+                Wavelengths = CurrentWavelengths.Select(w => new WavelengthConfig { Wavelength = w.Value }).ToList()
+            };
+            
+            db.Elements[SelectedElementSymbol] = config;
+            _elementDbService.Save(db);
+        }
+
+        #endregion
+
+        #region 3. 周期表初始化 (静态排版)
 
         private void InitializePeriodicTable()
         {

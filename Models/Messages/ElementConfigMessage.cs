@@ -47,6 +47,10 @@ namespace GD_ControlCenter_WPF.Models.Messages
         // 绑定的专属硬件参数 (移除曲线方程和R2)
         [ObservableProperty] private string _sampleCountText = string.Empty;
         [ObservableProperty] private string _sampleIntervalText = string.Empty;
+
+        [ObservableProperty] private int _integrationTime = 200;
+        [ObservableProperty] private int _averagingCount = 1;
+        [ObservableProperty] private string _fittingCurve = "测量校准曲线";
     }
 
     /// <summary>

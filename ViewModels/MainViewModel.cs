@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models;
+using GD_ControlCenter_WPF.Models.Messages;
 using GD_ControlCenter_WPF.Services;
 
 /*
@@ -122,6 +124,15 @@ namespace GD_ControlCenter_WPF.ViewModels
 
             // 软件启动后默认展示主控制面板
             _currentPage = ControlPanelVM;
+
+            // 监听导航请求消息
+            WeakReferenceMessenger.Default.Register<NavigateMessage>(this, (r, m) =>
+            {
+                if (m.Value == "AnalysisWorkstation")
+                {
+                    CurrentPage = AnalysisWorkstationVM;
+                }
+            });
         }
 
         #endregion

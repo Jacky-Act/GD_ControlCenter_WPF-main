@@ -120,8 +120,40 @@ namespace GD_ControlCenter_WPF.ViewModels
             _configService.Save(config);
         }
 
-        // 绑定到界面的 ComboBox 选项
-        public Array SampleTypes => Enum.GetValues(typeof(SampleType));
+        [ObservableProperty]
+        private bool _isRestrictedToUnknownOnly;
+
+        [ObservableProperty]
+        private bool _isSequenceApplied;
+
+        [ObservableProperty]
+        private System.Collections.ObjectModel.ObservableCollection<SampleType> _availableSampleTypes = new(Enum.GetValues(typeof(SampleType)).Cast<SampleType>());
+
+        partial void OnIsRestrictedToUnknownOnlyChanged(bool value)
+        {
+            AvailableSampleTypes.Clear();
+            if (value)
+            {
+                AvailableSampleTypes.Add(SampleType.待测液);
+            }
+            else
+            {
+                foreach (SampleType type in Enum.GetValues(typeof(SampleType)))
+                {
+                    AvailableSampleTypes.Add(type);
+                }
+            }
+
+            // 对当前的 Samples 重新赋值以避免出现非法的 SampleType
+            if (value)
+            {
+                foreach (var sample in Samples)
+                {
+                    if (sample.Type != SampleType.待测液)
+                        sample.Type = SampleType.待测液;
+                }
+            }
+        }
         public List<int> AvailableRepeats { get; } = Enumerable.Range(1, 99).ToList();
         public string[] AvailableUnits { get; } = new[] { "ppm", "ppb" };
 
@@ -161,6 +193,8 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         private void Samples_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
+            IsSequenceApplied = false;
+
             if (e.OldItems != null)
             {
                 foreach (SampleItemModel item in e.OldItems)
@@ -175,6 +209,8 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         private void OnSamplePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
+            IsSequenceApplied = false;
+
             if (e.PropertyName == nameof(SampleItemModel.SampleName))
             {
                 var changedSample = sender as SampleItemModel;
@@ -213,6 +249,16 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// </summary>
         private void UpdateActiveElements(List<AnalysisConfigItem> configs)
         {
+            // 更新限制状态：如果存在配置，且任一配置的曲线并非"测量校准曲线"
+            if (configs.Count > 0)
+            {
+                IsRestrictedToUnknownOnly = configs.Any(c => c.FittingCurve != "测量校准曲线");
+            }
+            else
+            {
+                IsRestrictedToUnknownOnly = false;
+            }
+
             _activeElements = configs.Select(x => 
                 x.ElementName.Contains("(") ? x.ElementName : $"{x.ElementName}({x.Wavelength})"
             ).Distinct().ToList();
@@ -401,17 +447,28 @@ namespace GD_ControlCenter_WPF.ViewModels
             _isHandlingTemplateChange = false;
             Samples.Clear();
 
-            // 生成新序列时，通知元素配置页面清空数据，从而联动清空本页面的动态列
-            WeakReferenceMessenger.Default.Send(new SyncTemplateElementsMessage(new List<AnalysisConfigItem>()));
+            // 生成新序列时，保留当前已选的元素配置，不再清空
+            // WeakReferenceMessenger.Default.Send(new SyncTemplateElementsMessage(new List<AnalysisConfigItem>()));
 
-            // 生成空白
-            Samples.Add(CreateNewSample(SampleType.空白, "BLK-1"));
-            // 生成标准品序列
-            for (int i = 1; i <= BatchStandardCount; i++)
-                Samples.Add(CreateNewSample(SampleType.标液, $"STD-{i}"));
-            // 生成待测样序列
-            for (int i = 1; i <= BatchUnknownCount; i++)
-                Samples.Add(CreateNewSample(SampleType.待测液, $"待测液-{i}"));
+            if (IsRestrictedToUnknownOnly)
+            {
+                int unknownCount = BatchUnknownCount > 0 ? BatchUnknownCount : 1;
+                for (int i = 1; i <= unknownCount; i++)
+                    Samples.Add(CreateNewSample(SampleType.待测液, $"待测液-{i}"));
+                
+                MessageBox.Show("因当前元素配置使用了已保存的拟合曲线，已自动为您省略空白与标液，仅生成待测液。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                // 生成空白
+                Samples.Add(CreateNewSample(SampleType.空白, "BLK-1"));
+                // 生成标准品序列
+                for (int i = 1; i <= BatchStandardCount; i++)
+                    Samples.Add(CreateNewSample(SampleType.标液, $"STD-{i}"));
+                // 生成待测样序列
+                for (int i = 1; i <= BatchUnknownCount; i++)
+                    Samples.Add(CreateNewSample(SampleType.待测液, $"待测液-{i}"));
+            }
 
             WeakReferenceMessenger.Default.Send(new RebuildColumnsMessage(_activeElements));
         }
@@ -440,9 +497,31 @@ namespace GD_ControlCenter_WPF.ViewModels
         [RelayCommand]
         private void ApplySequence()
         {
+            if (Samples == null || Samples.Count == 0)
+            {
+                MessageBox.Show("当前样品序列为空，请先添加样品或生成序列后再应用！", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             if (_activeElements == null || _activeElements.Count == 0)
             {
                 MessageBox.Show("当前未选择任何分析元素，请先在“元素配置”界面加入元素！", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (IsRestrictedToUnknownOnly && Samples.Any(s => s.Type != SampleType.待测液))
+            {
+                MessageBox.Show("应用失败：当前元素配置使用了已保存的拟合曲线，不允许测量标液或空白！\n\n请修改相关样品类型，或返回“元素配置”更改曲线设置。", "应用被拦截", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // 检查标液的浓度是否都已填写
+            var incompleteStandards = Samples.Where(s => s.Type == SampleType.标液 && 
+                                                         s.ElementConcentrations.Any(c => string.IsNullOrWhiteSpace(c.ConcentrationValue)))
+                                             .Select(s => s.SampleName).ToList();
+            if (incompleteStandards.Count > 0)
+            {
+                MessageBox.Show($"以下标液的元素浓度未完全填写：\n{string.Join(", ", incompleteStandards)}\n\n请将标液的所有浓度补充完整后再应用！", "标液浓度缺失拦截", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -460,9 +539,32 @@ namespace GD_ControlCenter_WPF.ViewModels
                 sample.Repeats = GlobalRepeats;
             }
 
-            // 将当前序列推送到流动注射/测量模块
-            WeakReferenceMessenger.Default.Send(new SampleSequenceChangedMessage(Samples.ToList()));
-            MessageBox.Show("进样序列已成功下发至测量模块！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            // 将当前序列深拷贝后推送到流动注射/测量模块，防止下游模块的修改污染本页面的原始数据
+            var clonedSamples = Samples.Select(s => new SampleItemModel
+            {
+                SampleName = s.SampleName,
+                Type = s.Type,
+                Repeats = s.Repeats,
+                Status = s.Status,
+                ElementConcentrations = new ObservableCollection<ElementConcentrationModel>(
+                    s.ElementConcentrations.Select(c => new ElementConcentrationModel
+                    {
+                        ElementName = c.ElementName,
+                        ConcentrationValue = c.ConcentrationValue,
+                        MeasuredIntensity = c.MeasuredIntensity,
+                        MeasuredRsd = c.MeasuredRsd
+                    }))
+            }).ToList();
+
+            WeakReferenceMessenger.Default.Send(new SampleSequenceChangedMessage(clonedSamples));
+            
+            // 标记已应用
+            IsSequenceApplied = true;
+
+            MessageBox.Show("进样序列已成功下发至测量模块！\n点击确定后将为您自动跳转至测样分析界面。", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // 跳转到测样分析
+            WeakReferenceMessenger.Default.Send(new NavigateMessage("AnalysisWorkstation"));
         }
 
         // --- 私有辅助 ---
