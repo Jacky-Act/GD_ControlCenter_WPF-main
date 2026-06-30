@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
 using GD_ControlCenter_WPF.Models.Spectrometer;
 using GD_ControlCenter_WPF.ViewModels;
@@ -64,6 +64,8 @@ namespace GD_ControlCenter_WPF.Views.Pages
                 SpecPlot.Plot.Clear();
                 SpecPlot.Plot.Add.Scatter(data.Wavelengths, data.Intensities).MarkerSize = 0;
 
+                /*
+                // 【已断开寻峰匹配与推送逻辑】
                 foreach (var peak in vm.PeakTracker.TrackedPeaks)
                 {
                     SpecPlot.Plot.Add.VerticalLine(peak.CurrentWavelength, 1.2f, ScottPlot.Color.FromHex("#F44336"));
@@ -73,10 +75,15 @@ namespace GD_ControlCenter_WPF.Views.Pages
                     double intensity = SpectrometerLogic.GetIntensityAtWavelength(data, peak.CurrentWavelength);
                     vm.PushData(name, intensity);
                 }
+                */
+
+                // 2. 将采集到的全谱数据直接交给 VM 处理提取强度（空方法占位）
+                vm.ExtractIntensityFromFullSpectrum(data.Wavelengths, data.Intensities);
+
                 SpecPlot.Plot.Axes.AutoScale();
                 SpecPlot.Refresh();
 
-                // 2. 渲染局部细节图
+                // 3. 渲染局部细节图
                 TrendPlot.Plot.Clear();
                 var elementLine = TrendPlot.Plot.Add.Scatter(data.Wavelengths, data.Intensities);
                 elementLine.MarkerSize = 0;

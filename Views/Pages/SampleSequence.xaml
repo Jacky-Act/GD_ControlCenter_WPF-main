@@ -50,16 +50,10 @@
                 <TextBox Width="50" Text="{Binding BatchUnknownCount}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4"/>
 
                 <TextBlock Text="重复次数:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
-                <Grid Margin="0,0,15,0" VerticalAlignment="Center">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="40"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0" Content="-" Width="26" Height="26" Padding="0" FontSize="16" Command="{Binding DecreaseRepeatsCommand}"/>
-                    <TextBox Grid.Column="1" Text="{Binding GlobalRepeats}" TextAlignment="Center" FontSize="16" FontWeight="Bold" Margin="4,0" VerticalAlignment="Center"/>
-                    <Button Grid.Column="2" Content="+" Width="26" Height="26" Padding="0" FontSize="16" Command="{Binding IncreaseRepeatsCommand}"/>
-                </Grid>
+                <TextBox Width="50" Text="{Binding GlobalRepeats}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4"/>
+                
+                <TextBlock Text="间隔(s):" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
+                <TextBox Width="50" Text="{Binding GlobalInterval, StringFormat={}{0:F1}}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4"/>
 
                 <TextBlock Text="浓度单位:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
                 <ComboBox Width="65" ItemsSource="{Binding AvailableUnits}" SelectedItem="{Binding ConcentrationUnit}" Margin="0,0,20,0" FontSize="16" FontWeight="Bold" HorizontalContentAlignment="Center"/>

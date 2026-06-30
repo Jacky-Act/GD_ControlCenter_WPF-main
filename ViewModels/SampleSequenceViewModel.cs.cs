@@ -81,6 +81,7 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         partial void OnBatchStandardCountChanged(int value)
         {
+            if (value < 0) { BatchStandardCount = 0; return; }
             if (_configService == null) return;
             var config = _configService.Load();
             config.LastBatchStandardCount = value;
@@ -92,6 +93,7 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         partial void OnBatchUnknownCountChanged(int value)
         {
+            if (value < 0) { BatchUnknownCount = 0; return; }
             if (_configService == null) return;
             var config = _configService.Load();
             config.LastBatchUnknownCount = value;
@@ -103,9 +105,22 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         partial void OnGlobalRepeatsChanged(int value)
         {
+            if (value < 0) { GlobalRepeats = 0; return; }
             if (_configService == null) return;
             var config = _configService.Load();
             config.LastSampleRepeats = value;
+            _configService.Save(config);
+        }
+
+        [ObservableProperty]
+        private double _globalInterval = 0.0;
+
+        partial void OnGlobalIntervalChanged(double value)
+        {
+            if (value < 0) { GlobalInterval = 0.0; return; }
+            if (_configService == null) return;
+            var config = _configService.Load();
+            config.LastGlobalInterval = value;
             _configService.Save(config);
         }
 
@@ -168,6 +183,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             _batchStandardCount = config.LastBatchStandardCount;
             _batchUnknownCount = config.LastBatchUnknownCount;
             _globalRepeats = config.LastSampleRepeats;
+            _globalInterval = config.LastGlobalInterval;
             _concentrationUnit = string.IsNullOrEmpty(config.LastConcentrationUnit) ? "ppm" : config.LastConcentrationUnit;
 
             // 删除文件后刷新列表，此时下拉框将变为空白
@@ -347,6 +363,22 @@ namespace GD_ControlCenter_WPF.ViewModels
 
                 foreach (var item in data) Samples.Add(item);
 
+                // 从模板中恢复顶部的“标准样品”、“待测样品”、“重复次数”、“间隔”和“浓度单位”配置
+                if (data.Count > 0)
+                {
+                    GlobalRepeats = data[0].Repeats > 0 ? data[0].Repeats : 1;
+                    GlobalInterval = data[0].Interval >= 0 ? data[0].Interval : 0.0;
+                    
+                    if (!string.IsNullOrEmpty(data[0].ConcentrationUnit))
+                    {
+                        ConcentrationUnit = data[0].ConcentrationUnit;
+                    }
+
+                    // 统计模板中的标液和待测液数量，反向更新给上方生成器
+                    BatchStandardCount = data.Count(s => s.Type == SampleType.标液);
+                    BatchUnknownCount = data.Count(s => s.Type == SampleType.待测液);
+                }
+
                 // 通知元素配置页面同步更新底层数据
                 WeakReferenceMessenger.Default.Send(new SyncTemplateElementsMessage(templateElements));
             }
@@ -376,6 +408,14 @@ namespace GD_ControlCenter_WPF.ViewModels
             {
                 var result = MessageBox.Show($"模板 '{NewTemplateName}' 已存在，是否覆盖？", "重名确认", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (result == MessageBoxResult.No) return;
+            }
+
+            // 保存前，将顶栏的全局参数强制写入每一行数据中，确保能被序列化保存
+            foreach (var s in Samples)
+            {
+                s.Repeats = GlobalRepeats;
+                s.Interval = GlobalInterval;
+                s.ConcentrationUnit = ConcentrationUnit;
             }
 
             _storageService.SaveTemplate(NewTemplateName, Samples.ToList());
@@ -452,7 +492,7 @@ namespace GD_ControlCenter_WPF.ViewModels
 
             if (IsRestrictedToUnknownOnly)
             {
-                int unknownCount = BatchUnknownCount > 0 ? BatchUnknownCount : 1;
+                int unknownCount = BatchUnknownCount; // 允许为0
                 for (int i = 1; i <= unknownCount; i++)
                     Samples.Add(CreateNewSample(SampleType.待测液, $"待测液-{i}"));
                 
@@ -537,6 +577,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             foreach (var sample in Samples)
             {
                 sample.Repeats = GlobalRepeats;
+                sample.Interval = GlobalInterval;
             }
 
             // 将当前序列深拷贝后推送到流动注射/测量模块，防止下游模块的修改污染本页面的原始数据
@@ -545,6 +586,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                 SampleName = s.SampleName,
                 Type = s.Type,
                 Repeats = s.Repeats,
+                Interval = s.Interval,
                 Status = s.Status,
                 ElementConcentrations = new ObservableCollection<ElementConcentrationModel>(
                     s.ElementConcentrations.Select(c => new ElementConcentrationModel

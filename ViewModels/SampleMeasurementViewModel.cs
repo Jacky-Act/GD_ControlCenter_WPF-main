@@ -17,6 +17,16 @@ using Microsoft.Win32;
 namespace GD_ControlCenter_WPF.ViewModels
 {
     /// <summary>
+    /// 用于前端 UI 绑定的测量组数据模型
+    /// </summary>
+    public class MeasurementGroup : ObservableObject
+    {
+        public int IntegrationTime { get; set; }
+        public int AverageCount { get; set; }
+        public ObservableCollection<string> Elements { get; set; } = new();
+    }
+
+    /// <summary>
     /// 连续进样分析视图模型
     /// 职责：管理测量序列、处理跨页面寻峰同步、多通道数据采集、RSD 计算并导出结果。
     /// </summary>
@@ -33,6 +43,42 @@ namespace GD_ControlCenter_WPF.ViewModels
         [ObservableProperty] private bool _isCollecting; // 是否正在采集数据 (绑定到开始/停止按钮)
         [ObservableProperty] private ObservableCollection<string> _pickedElements = new(); // 下拉框中显示的已识别元素名
         [ObservableProperty] private string _selectedElement = string.Empty; // 当前下拉框选中的元素
+        
+        [ObservableProperty] private MeasurementGroup _currentMeasurementGroup = new(); // 当前右上角展示的元素测量组
+
+        // 测量强度预览：当前选中的用于预览强度的元素对象
+        [ObservableProperty] private ElementConcentrationModel? _selectedPreviewElement;
+
+        partial void OnCurrentSampleChanged(SampleItemModel? value)
+        {
+            UpdateMeasurementGroupDisplay();
+            
+            // 每次切换样品时，初始化该样品下每个元素的测量轮次(Reps)
+            if (value != null)
+            {
+                foreach (var ec in value.ElementConcentrations)
+                {
+                    if (ec.Reps.Count != value.Repeats)
+                    {
+                        ec.Reps.Clear();
+                        for (int i = 1; i <= value.Repeats; i++)
+                        {
+                            ec.Reps.Add(new MeasurementRepModel { RepIndex = i, Intensity = null, IsMeasuring = false });
+                        }
+                    }
+                }
+                
+                // 默认选中第一个元素进行预览
+                if (value.ElementConcentrations.Any())
+                {
+                    SelectedPreviewElement = value.ElementConcentrations.First();
+                }
+            }
+            else
+            {
+                SelectedPreviewElement = null;
+            }
+        }
 
         #endregion
 
@@ -55,7 +101,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             _peakTracker = peakTracker;
 
             // --- 核心修复：监听全局寻峰大管家变化 (处理主界面红线增删同步) ---
-            _peakTracker.TrackedPeaks.CollectionChanged += OnGlobalTrackedPeaksChanged;
+            // _peakTracker.TrackedPeaks.CollectionChanged += OnGlobalTrackedPeaksChanged; // 【已断开寻峰匹配逻辑】
 
             // 监听样品序列页面下发的测量任务名单
             WeakReferenceMessenger.Default.Register<SampleSequenceChangedMessage>(this, (r, m) =>
@@ -65,17 +111,38 @@ namespace GD_ControlCenter_WPF.ViewModels
                 {
                     CurrentSample = MeasurementSequence[0]; // 默认选中第一个样品
                 }
-                // 每次下发新序列，也强制根据当前已有的峰线重刷一次表格槽位
-                RefreshElementsFromTracker();
+                
+                // 【已断开寻峰匹配逻辑】直接使用下发的元素列表，不再根据红线强制重刷槽位
+                // RefreshElementsFromTracker(); 
+
+                // 同步下拉框供图表局部查看使用
+                PickedElements.Clear();
+                if (CurrentSample != null)
+                {
+                    foreach (var ec in CurrentSample.ElementConcentrations)
+                    {
+                        PickedElements.Add(ec.ElementName);
+                    }
+                }
+                if (PickedElements.Count > 0) SelectedElement = PickedElements[0];
             });
 
             // 软件启动或页面初始化时，主动同步一次主界面的峰线
-            RefreshElementsFromTracker();
+            // RefreshElementsFromTracker(); // 【已断开寻峰匹配逻辑】
         }
 
         #endregion
 
         #region 4. 跨页面同步与元素匹配逻辑
+        
+        /// <summary>
+        /// 新增空方法：全谱数据特征提取
+        /// 之后将在这里实现：直接通过采集全谱数据，从中找到目标波长值和对应的强度
+        /// </summary>
+        public void ExtractIntensityFromFullSpectrum(double[] wavelengths, double[] intensities)
+        {
+            // TODO: 实现全谱中目标波长的强度提取逻辑
+        }
 
         /// <summary>
         /// 公开的寻峰大管家实例，供 View 层获取追踪的峰线数据进行绘图。
@@ -87,15 +154,16 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// </summary>
         private void OnGlobalTrackedPeaksChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            RefreshElementsFromTracker();
+            // RefreshElementsFromTracker(); // 【已断开寻峰匹配逻辑】
         }
 
         /// <summary>
-        /// 【镜像同步引擎核心】：将主界面追踪的物理峰线转换为本页面的业务元素，并维护 UI。
-        /// 确保下拉框、右侧表格的元素行与主界面红线标注完全一致（支持同步删除）。
+        /// 【已废弃/断开】：将主界面追踪的物理峰线转换为本页面的业务元素，并维护 UI。
         /// </summary>
         public void RefreshElementsFromTracker()
         {
+            // 逻辑已断开，不再基于寻峰红线增删元素行
+            /*
             // 必须在 UI 线程执行，因为涉及 ObservableCollection 的修改
             Application.Current.Dispatcher.Invoke(() =>
             {
@@ -143,7 +211,63 @@ namespace GD_ControlCenter_WPF.ViewModels
                 {
                     SelectedElement = PickedElements.FirstOrDefault() ?? string.Empty;
                 }
+                
+                // 5. 更新右上角的测量组信息展示
+                UpdateMeasurementGroupDisplay();
             });
+            */
+            
+            // 简单更新一下右上角的测量组信息即可
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                UpdateMeasurementGroupDisplay();
+            });
+        }
+        
+        /// <summary>
+        /// 更新右上角“样品信息”卡片中展示的元素分组（按相同的积分时间和平均次数分组）
+        /// </summary>
+        private void UpdateMeasurementGroupDisplay()
+        {
+            if (CurrentSample == null || _elementConfigVM.SelectedConfigs == null || _elementConfigVM.SelectedConfigs.Count == 0)
+            {
+                CurrentMeasurementGroup = new MeasurementGroup();
+                return;
+            }
+
+            // 假设当前只取配置中的第一组作为展示（由于目前业务是同时采所有峰，如果有不同配置，硬件实现分组轮询测量的逻辑将在这里驱动）
+            var firstConfig = _elementConfigVM.SelectedConfigs.FirstOrDefault();
+            if (firstConfig == null) return;
+
+            int currentIntegrationTime = firstConfig.IntegrationTime;
+            int currentAverageCount = firstConfig.AveragingCount;
+
+            // 找出所有和第一组具有相同【积分时间】和【平均次数】的元素
+            var groupedElements = _elementConfigVM.SelectedConfigs
+                .Where(c => c.IntegrationTime == currentIntegrationTime && c.AveragingCount == currentAverageCount)
+                .Select(c => $"{c.ElementName}({c.Wavelength})")
+                .ToList();
+
+            // 业务逻辑修改：如果当前是“空白溶液”，并且（只有一个元素 或 所有元素的积分时间和平均次数都相同）
+            // 那么不需要显示元素信息。多元素且配置不同时才需要显示。
+            bool isBlankSample = CurrentSample.Type == SampleType.空白;
+            var distinctConfigGroupsCount = _elementConfigVM.SelectedConfigs
+                .Select(c => new { c.IntegrationTime, c.AveragingCount })
+                .Distinct()
+                .Count();
+
+            if (isBlankSample && distinctConfigGroupsCount <= 1)
+            {
+                // 不需要显示元素信息，清空列表
+                groupedElements.Clear();
+            }
+
+            CurrentMeasurementGroup = new MeasurementGroup
+            {
+                IntegrationTime = currentIntegrationTime,
+                AverageCount = currentAverageCount,
+                Elements = new ObservableCollection<string>(groupedElements)
+            };
         }
 
         /// <summary>

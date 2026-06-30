@@ -1,5 +1,7 @@
-﻿using System.Windows.Controls;
+using System.Windows.Controls;
 using GD_ControlCenter_WPF.ViewModels;
+using GD_ControlCenter_WPF.Models.Messages;
+using CommunityToolkit.Mvvm.Messaging;
 
 /*
  * 文件名: NavigationView.xaml.cs
@@ -18,12 +20,21 @@ namespace GD_ControlCenter_WPF.Views.Components
     /// </summary>
     public partial class NavigationView : UserControl
     {
-        /// <summary>
-        /// 初始化导航组件。
-        /// </summary>
         public NavigationView()
         {
             InitializeComponent();
+            
+            // 监听全局导航消息，使得外部跳转（如从样品序列跳到测样分析）时，侧边栏能够同步高亮
+            WeakReferenceMessenger.Default.Register<NavigateMessage>(this, (r, m) =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (m.Value == "AnalysisWorkstation")
+                    {
+                        MainTabControl.SelectedIndex = 4;
+                    }
+                });
+            });
         }
 
         /// <summary>

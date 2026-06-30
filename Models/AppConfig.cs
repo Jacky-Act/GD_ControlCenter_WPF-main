@@ -168,6 +168,11 @@ namespace GD_ControlCenter_WPF.Models
         public int LastSampleRepeats { get; set; } = 1;
 
         /// <summary>
+        /// 样品序列预设的全局采集间隔(秒)。
+        /// </summary>
+        public double LastGlobalInterval { get; set; } = 0.0;
+
+        /// <summary>
         /// 样品序列预设的浓度单位。
         /// </summary>
         public string LastConcentrationUnit { get; set; } = "ppm";

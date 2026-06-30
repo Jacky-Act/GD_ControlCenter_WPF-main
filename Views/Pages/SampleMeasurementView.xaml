@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="GD_ControlCenter_WPF.Views.Pages.SampleMeasurementView"
+<UserControl x:Class="GD_ControlCenter_WPF.Views.Pages.SampleMeasurementView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -92,11 +92,50 @@
             </Grid.RowDefinitions>
 
             <!-- 样品信息 -->
-            <materialDesign:Card Margin="5" UniformCornerRadius="8" Background="{DynamicResource PrimaryHueMidBrush}" Foreground="White">
-                <StackPanel Margin="15">
-                    <TextBlock Text="{Binding CurrentSample.SampleName, FallbackValue='未选择'}" FontSize="24" FontWeight="Bold"/>
-                    <TextBlock Text="{Binding CurrentSample.Type}" FontSize="14" Opacity="0.8"/>
-                </StackPanel>
+            <materialDesign:Card Margin="5" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
+                <Grid Margin="15">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- 行0：样品名称 (左) 和 积分时间 (右) -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding CurrentSample.SampleName, FallbackValue='未选择'}" FontSize="24" FontWeight="Bold"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <TextBlock Text="积分时间: " FontSize="14" Opacity="0.6"/>
+                        <TextBlock Text="{Binding CurrentMeasurementGroup.IntegrationTime, FallbackValue='--'}" FontSize="14" FontWeight="Bold" Margin="2,0,0,0"/>
+                        <TextBlock Text=" ms" FontSize="14" Opacity="0.6"/>
+                    </StackPanel>
+
+                    <!-- 行1：样品类型 (左) 和 平均次数 (右) -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding CurrentSample.Type}" FontSize="14" Opacity="0.8" Margin="0,5,0,0"/>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,5,0,0">
+                        <TextBlock Text="平均次数: " FontSize="14" Opacity="0.6"/>
+                        <TextBlock Text="{Binding CurrentMeasurementGroup.AverageCount, FallbackValue='--'}" FontSize="14" FontWeight="Bold" Margin="2,0,0,0"/>
+                    </StackPanel>
+
+                    <!-- 行2：当前测量的元素列表（竖向，双列，带滑动条） -->
+                    <ScrollViewer Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" VerticalScrollBarVisibility="Auto" MaxHeight="80" Margin="0,15,0,0">
+                        <ItemsControl ItemsSource="{Binding CurrentMeasurementGroup.Elements}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="2" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" FontSize="13" Margin="0,2,10,2" Opacity="0.8" TextWrapping="Wrap"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
             </materialDesign:Card>
 
             <!-- 结果表格 -->
@@ -105,17 +144,69 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="测量强度预览" FontWeight="Bold" Opacity="0.6"/>
+                    
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="测量强度预览" FontWeight="Bold" Opacity="0.6" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <ComboBox ItemsSource="{Binding CurrentSample.ElementConcentrations}"
+                                  SelectedItem="{Binding SelectedPreviewElement}"
+                                  DisplayMemberPath="ElementName"
+                                  materialDesign:HintAssist.Hint="切换元素"
+                                  Width="120"
+                                  VerticalAlignment="Center"/>
+                    </StackPanel>
 
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding CurrentSample.ElementConcentrations}" 
-                              AutoGenerateColumns="False" IsReadOnly="True" Margin="0,10,0,0">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="分析元素" Binding="{Binding ElementName}" Width="1.2*"/>
-                            <DataGridTextColumn Header="平均强度" Binding="{Binding MeasuredIntensity, StringFormat={}{0:F2}}" Width="*"/>
-                            <DataGridTextColumn Header="RSD(%)" Binding="{Binding MeasuredRsd, StringFormat={}{0:F2}}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <!-- 动态测样列表 -->
+                    <ScrollViewer Grid.Row="1" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding SelectedPreviewElement.Reps}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,0,8" Padding="12" CornerRadius="4" 
+                                            Background="{DynamicResource MaterialDesignPaper}"
+                                            BorderThickness="1" BorderBrush="{DynamicResource MaterialDesignDivider}">
+                                        <Grid>
+                                            <TextBlock Text="{Binding RepIndex, StringFormat='第 {0} 次'}" 
+                                                       FontWeight="Bold" Opacity="0.7" VerticalAlignment="Center"/>
+                                            
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <ProgressBar x:Name="MeasuringProgress" Style="{StaticResource MaterialDesignCircularProgressBar}" 
+                                                             Value="0" IsIndeterminate="True" 
+                                                             Width="16" Height="16" Margin="0,0,10,0"
+                                                             Visibility="Collapsed"/>
+                                                
+                                                <!-- TargetNullValue 绑定不支持的话可以直接写在StringFormat，但空值直接留白即可。为了有占位符： -->
+                                                <TextBlock x:Name="ValueText" Text="{Binding Intensity, TargetNullValue='--'}" 
+                                                           FontSize="16" FontWeight="Bold" 
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsMeasuring}" Value="True">
+                                            <Setter TargetName="MeasuringProgress" Property="Visibility" Value="Visible"/>
+                                            <!-- 测量中时如果需要数值高亮也可以在这里写 -->
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- 底部统计 -->
+                    <Border Grid.Row="2" Margin="0,10,0,0" Padding="10" Background="{DynamicResource PrimaryHueLightBrush}" CornerRadius="4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding SelectedPreviewElement.MeasuredIntensity, StringFormat='平均强度 - {0:F2}'}" 
+                                       FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedPreviewElement.MeasuredRsd, StringFormat='RSD - {0:F2}%'}" 
+                                       FontWeight="Bold" HorizontalAlignment="Center"/>
+                        </Grid>
+                    </Border>
                 </Grid>
             </materialDesign:Card>
 

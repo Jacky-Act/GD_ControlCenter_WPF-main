@@ -10,6 +10,16 @@ namespace GD_ControlCenter_WPF.Models.Messages
     public enum SampleType { 空白, 标液, 待测液 }
 
     /// <summary>
+    /// 单次测量数据实体 (用于测量强度预览)
+    /// </summary>
+    public partial class MeasurementRepModel : ObservableObject
+    {
+        [ObservableProperty] private int _repIndex;
+        [ObservableProperty] private double? _intensity;
+        [ObservableProperty] private bool _isMeasuring;
+    }
+
+    /// <summary>
     /// 单个元素的浓度实体（解决 WPF 字典绑定不更新的痛点）
     /// </summary>
     public partial class ElementConcentrationModel : ObservableObject
@@ -18,6 +28,9 @@ namespace GD_ControlCenter_WPF.Models.Messages
         [ObservableProperty] private string _concentrationValue = string.Empty;
         [ObservableProperty] private double _measuredIntensity;
         [ObservableProperty] private double _measuredRsd;
+        
+        // 存放多次重复测量的详细数据集合
+        public ObservableCollection<MeasurementRepModel> Reps { get; set; } = new();
 
         public ElementConcentrationModel Clone()
         {
@@ -37,6 +50,8 @@ namespace GD_ControlCenter_WPF.Models.Messages
         [ObservableProperty] private string _sampleName = "新样品";
         [ObservableProperty] private SampleType _type = SampleType.待测液;
         [ObservableProperty] private int _repeats = 1;
+        [ObservableProperty] private double _interval = 0.0; // 每次采集之间的间隔，单位秒
+        [ObservableProperty] private string _concentrationUnit = "ppm"; // 附加单位记录，供模板恢复使用
         [ObservableProperty] private string _status = "等待";
 
         // 改用 ObservableCollection 存放各个元素的浓度，完美支持双向绑定
@@ -59,6 +74,8 @@ namespace GD_ControlCenter_WPF.Models.Messages
                 SampleName = this.SampleName + " - 副本",
                 Type = this.Type,
                 Repeats = this.Repeats,
+                Interval = this.Interval,
+                ConcentrationUnit = this.ConcentrationUnit,
                 Status = "等待",
                 ElementConcentrations = new ObservableCollection<ElementConcentrationModel>(this.ElementConcentrations.Select(c => c.Clone()))
             };
