@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging.Messages;
+using CommunityToolkit.Mvvm.Messaging.Messages;
 using GD_ControlCenter_WPF.Models.Spectrometer;
 
 /*
@@ -102,6 +102,13 @@ namespace GD_ControlCenter_WPF.Models.Messages
     /// 订阅方：ControlPanelView.xaml.cs。
     /// </summary>
     public class ClearReferencePlotMessage { }
+
+    /// <summary>
+    /// 强制清除当前图表上的实时光谱数据波形（通常用于设备断开时）。
+    /// 发送方：ControlPanelViewModel 等。
+    /// 订阅方：ControlPanelView.xaml.cs 等。
+    /// </summary>
+    public class ClearWaveformMessage { }
 
     // ================== 自动化业务同步 ==================
 

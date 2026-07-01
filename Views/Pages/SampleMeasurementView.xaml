@@ -32,7 +32,8 @@
                 </Grid.RowDefinitions>
                 <TextBlock Text="待测任务序列" FontWeight="Bold" FontSize="16" Margin="0,0,0,10" Opacity="0.6"/>
                 <DataGrid Grid.Row="1" ItemsSource="{Binding MeasurementSequence}" SelectedItem="{Binding CurrentSample}"
-                          AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
+                          AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                          IsEnabled="{Binding IsCollecting, Converter={StaticResource InverseBoolConverter}}">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="85">
                             <DataGridTextColumn.ElementStyle>
@@ -229,10 +230,10 @@
                                 <Setter Property="Command" Value="{Binding StartCollectingCommand}"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsCollecting}" Value="True">
-                                        <Setter Property="Content" Value="停止采集并保存"/>
+                                        <Setter Property="Content" Value="中止采集 (Cancel)"/>
                                         <Setter Property="Background" Value="IndianRed"/>
                                         <Setter Property="BorderBrush" Value="IndianRed"/>
-                                        <Setter Property="Command" Value="{Binding StopAndSaveCommand}"/>
+                                        <Setter Property="Command" Value="{Binding StopSequenceCommand}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>

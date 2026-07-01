@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
 using GD_ControlCenter_WPF.Models.Spectrometer;
 using GD_ControlCenter_WPF.Services.Spectrometer;
@@ -241,6 +241,11 @@ namespace GD_ControlCenter_WPF.Views.Pages
             WeakReferenceMessenger.Default.Register<ClearReferencePlotMessage>(this, (r, m) =>
             {
                 Dispatcher.Invoke(() => { _cachedReferenceData = null; RenderPlot(_currentData); });
+            });
+
+            WeakReferenceMessenger.Default.Register<ClearWaveformMessage>(this, (r, m) =>
+            {
+                Dispatcher.Invoke(() => { _currentData = null; RenderPlot(null); });
             });
 
             // 交互订阅：量程切换请求

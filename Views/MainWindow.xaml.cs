@@ -1,7 +1,9 @@
-﻿using GD_ControlCenter_WPF.Services;
+using GD_ControlCenter_WPF.Services;
 using GD_ControlCenter_WPF.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using System.Windows;
+using System;
+using System.Windows.Interop;
 
 /*
  * 文件名: MainWindow.xaml.cs
@@ -37,6 +39,30 @@ namespace GD_ControlCenter_WPF.Views
             // 注册窗口关闭事件，用于执行参数持久化
             this.Closing += MainWindow_Closing;
         }
+
+        #region 硬件 USB 热插拔监听
+        
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            HwndSource source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
+            source?.AddHook(WndProc);
+        }
+
+        private const int WM_DEVICECHANGE = 0x0219;
+
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            // 当系统广播 USB 设备状态改变时
+            if (msg == WM_DEVICECHANGE)
+            {
+                // 静默触发光谱仪全局扫描，SyncDevices 会自动把断开的设备移出列表
+                _ = GD_ControlCenter_WPF.Services.Spectrometer.SpectrometerManager.Instance.DiscoverAndInitDevicesAsync();
+            }
+            return IntPtr.Zero;
+        }
+
+        #endregion
 
         /// <summary>
         /// 核心显示逻辑：按照屏幕比例初始化窗口，并从配置文件中恢复上次关闭时的位置与尺寸。

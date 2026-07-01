@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized; 
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows; 
 using Microsoft.Win32; 
 
@@ -333,76 +334,220 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         #region 交互命令
 
-        /// <summary>
-        /// 开始采集数据命令：清空旧缓冲区，启动采集状态。
-        /// </summary>
         [RelayCommand]
-        private void StartCollecting()
+        private async Task StartCollecting()
         {
             if (CurrentSample == null) { MessageBox.Show("请先选择左侧的样品！", "警告"); return; }
             if (PickedElements.Count == 0) { MessageBox.Show("请先在主界面寻峰选择要监控的元素！", "警告"); return; }
 
-            _multiChannelBuffer.Clear(); // 启动前必须清空所有通道的旧数据
-            IsCollecting = true;
-            CurrentSample.Status = "采集数据中..."; // 更新左侧样品状态
-        }
-
-        /// <summary>
-        /// 停止采集并计算保存命令：核心结果计算与持久化逻辑。
-        /// </summary>
-        [RelayCommand]
-        private void StopAndSave()
-        {
-            if (!IsCollecting) return; // 仅在采集状态下点击才有效
-            IsCollecting = false; // 停止采集状态
-
-            // 【关键修复】：检查缓冲区是否有足够的数据点 (至少需要2个点才能算 RSD)
-            // 检查任意一个通道的数据点数，如果所有通道点数都小于2，则不进行计算
-            if (_multiChannelBuffer.Any() && _multiChannelBuffer.Values.Any(list => list.Count > 1))
+            // 检查是否有在线的光谱仪设备
+            if (SpectrometerManager.Instance.Devices.Count == 0)
             {
-                foreach (var channel in _multiChannelBuffer) // 遍历每个采集通道
+                MessageBox.Show("未检测到在线的光谱仪，请检查设备连接后再试！", "硬件未就绪", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // 检查已连接的光谱仪是否开启了“连续采集”流
+            if (SpectrometerManager.Instance.Devices.Any(d => !d.IsMeasuring))
+            {
+                MessageBox.Show("光谱仪已连接，但尚未启动连续采集流！\n请确保光谱仪已处于工作/读取状态后再开始全自动测量。", "采集未启动", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // 启动确认弹窗（显示样品信息、元素波长及浓度）
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"当前测样序列：{CurrentSample.SampleName}");
+            if (CurrentSample.Type == GD_ControlCenter_WPF.Models.Messages.SampleType.标液)
+            {
+                sb.AppendLine("类型：标液");
+                sb.AppendLine("元素配置及浓度：");
+                foreach (var ec in CurrentSample.ElementConcentrations)
                 {
-                    var data = channel.Value;
-                    if (data.Count < 2) continue; // 不足 2 个点则跳过 RSD 计算
-
-                    double average = data.Average();
-
-                    // --- 计算 RSD (相对标准偏差) ---
-                    // 标准差公式：sqrt( (Σ(x - avg)^2) / (n - 1) )
-                    double sumOfSquares = data.Select(val => (val - average) * (val - average)).Sum();
-                    double stdDev = Math.Sqrt(sumOfSquares / (data.Count - 1));
-                    double rsd = (average != 0) ? (stdDev / average) * 100.0 : 0; // RSD = (StdDev / Avg) * 100%
-
-                    // 【核心修复】：将计算结果写入 CurrentSample 的对应元素行
-                    var targetRow = CurrentSample?.ElementConcentrations
-                        .FirstOrDefault(e => e.ElementName == channel.Key); // Key就是元素名
-
-                    if (targetRow != null)
-                    {
-                        targetRow.MeasuredIntensity = Math.Round(average, 2); // 保留两位小数
-                        targetRow.MeasuredRsd = Math.Round(rsd, 2);           // 保留两位小数
-                    }
+                    sb.AppendLine($" - {ec.ElementName}: {ec.ConcentrationValue} {CurrentSample.ConcentrationUnit}");
                 }
-
-                if (CurrentSample != null) CurrentSample.Status = "已完成"; // 样品状态更新
-
-                // 执行本地 JSON 数据落盘保存
-                _configService.SaveResults(MeasurementSequence.ToList());
-
-                // 逻辑完成后自动跳转到序列中的下一个样品
-                int currentIndex = MeasurementSequence.IndexOf(CurrentSample!);
-                if (currentIndex < MeasurementSequence.Count - 1)
-                    CurrentSample = MeasurementSequence[currentIndex + 1];
-                else
-                    MessageBox.Show("全序列测量任务已全部结束！", "提示");
             }
             else
             {
-                // 如果采集数据不足，提示警告并重置样品状态
-                if (CurrentSample != null) CurrentSample.Status = "等待";
-                MessageBox.Show("采集数据不足，无法计算有效统计结果！", "警告");
+                sb.AppendLine("类型：待测液");
+                sb.AppendLine("元素配置：");
+                foreach (var ec in CurrentSample.ElementConcentrations)
+                {
+                    sb.AppendLine($" - {ec.ElementName}");
+                }
             }
-            _multiChannelBuffer.Clear(); // 彻底清空，防止数据污染下一个样品
+            sb.AppendLine("\n请确认放置好当前样品后，点击“确定”开始测量。");
+
+            var result = MessageBox.Show(sb.ToString(), "开始采集确认", MessageBoxButton.OKCancel, MessageBoxImage.Information);
+            if (result != MessageBoxResult.OK) return;
+
+            IsCollecting = true;
+            await RunAutomatedMeasurementAsync();
+        }
+
+        private async Task RunAutomatedMeasurementAsync()
+        {
+            while (CurrentSample != null && IsCollecting)
+            {
+                CurrentSample.Status = "采集数据中...";
+
+                // 按积分时间和平均次数分组
+                var groups = _elementConfigVM.SelectedConfigs
+                    .GroupBy(c => new { c.IntegrationTime, c.AveragingCount })
+                    .ToList();
+
+                var cachedColumns = new List<(string, SpectralData)>();
+
+                foreach (var group in groups)
+                {
+                    if (!IsCollecting) break;
+
+                    int intTime = group.Key.IntegrationTime;
+                    int avgCount = group.Key.AveragingCount;
+
+                    string elementsHeader = string.Join(" | ", group.Select(c => $"{c.ElementName}({c.Wavelength})"));
+                    string groupHeader = $"{elementsHeader} - {intTime}ms x{avgCount}";
+
+                    // 下发硬件配置
+                    foreach(var device in SpectrometerManager.Instance.Devices)
+                    {
+                        await device.UpdateConfigurationAsync(intTime, (uint)avgCount);
+                    }
+
+                    // 切换参数后等待硬件稳定: 3 * (积分时间 * 平均次数)
+                    await Task.Delay(3 * intTime * avgCount);
+
+                    for (int r = 0; r < CurrentSample.Repeats; r++)
+                    {
+                        if (!IsCollecting) break;
+
+                        // UI 更新测量中状态
+                        var repModels = new List<MeasurementRepModel>();
+                        foreach (var conf in group)
+                        {
+                            string matchName = $"{conf.ElementName}({conf.Wavelength})";
+                            var targetRow = CurrentSample.ElementConcentrations.FirstOrDefault(e => e.ElementName == matchName || e.ElementName == conf.ElementName);
+                            if (targetRow != null && r < targetRow.Reps.Count)
+                            {
+                                targetRow.Reps[r].IsMeasuring = true;
+                                repModels.Add(targetRow.Reps[r]);
+                            }
+                        }
+
+                        // 从硬件连续数据流中截取最新一帧
+                        SpectralData frame = await WaitForNextFrameAsync();
+
+                        // 恢复状态
+                        foreach (var rep in repModels) rep.IsMeasuring = false;
+
+                        if (frame != null)
+                        {
+                            cachedColumns.Add((groupHeader + $" [第{r + 1}次]", frame));
+
+                            // 提取波长强度
+                            foreach (var conf in group)
+                            {
+                                double realWl = SpectrometerLogic.GetActualPeakWavelength(frame, conf.Wavelength, 1.0);
+                                double realIntensity = SpectrometerLogic.GetIntensityAtWavelength(frame, realWl);
+
+                                string matchName = $"{conf.ElementName}({conf.Wavelength})";
+                                var targetRow = CurrentSample.ElementConcentrations.FirstOrDefault(e => e.ElementName == matchName || e.ElementName == conf.ElementName);
+                                if (targetRow != null && r < targetRow.Reps.Count)
+                                {
+                                    targetRow.Reps[r].Intensity = Math.Round(realIntensity, 2);
+                                }
+                            }
+                        }
+
+                        // 间隔等待 (非最后一次)
+                        if (r < CurrentSample.Repeats - 1)
+                        {
+                            int delayMs = (int)(CurrentSample.Interval * 1000);
+                            if (delayMs > 0) await Task.Delay(delayMs);
+                        }
+                    }
+                }
+
+                if (!IsCollecting) break; // 中途取消
+
+                // 计算 RSD 和 平均值
+                foreach (var row in CurrentSample.ElementConcentrations)
+                {
+                    var validIntensities = row.Reps.Where(r => r.Intensity.HasValue).Select(r => r.Intensity.Value).ToList();
+                    if (validIntensities.Count >= 2)
+                    {
+                        double avg = validIntensities.Average();
+                        double sumOfSquares = validIntensities.Select(val => (val - avg) * (val - avg)).Sum();
+                        double stdDev = Math.Sqrt(sumOfSquares / (validIntensities.Count - 1));
+                        double rsd = (avg != 0) ? (stdDev / avg) * 100.0 : 0;
+
+                        row.MeasuredIntensity = Math.Round(avg, 2);
+                        row.MeasuredRsd = Math.Round(rsd, 2);
+                    }
+                    else if (validIntensities.Count == 1)
+                    {
+                        row.MeasuredIntensity = Math.Round(validIntensities[0], 2);
+                        row.MeasuredRsd = 0;
+                    }
+                }
+
+                CurrentSample.Status = "已完成";
+
+                // 后台 CSV 落盘
+                string folder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Records");
+                string filePath = System.IO.Path.Combine(folder, $"{CurrentSample.SampleName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await CsvExportService.ExportSpectralDataColumnsAsync(filePath, cachedColumns);
+                    }
+                    catch (Exception ex)
+                    {
+                        Application.Current.Dispatcher.Invoke(() => MessageBox.Show($"CSV导出失败: {ex.Message}"));
+                    }
+                });
+
+                // 本地 JSON 序列保存
+                _configService.SaveResults(MeasurementSequence.ToList());
+
+                // 自动跳向下一个样品，并终止本轮自动循环采集
+                int currentIndex = MeasurementSequence.IndexOf(CurrentSample);
+                if (currentIndex < MeasurementSequence.Count - 1)
+                {
+                    var nextSample = MeasurementSequence[currentIndex + 1];
+                    MessageBox.Show($"样品 [{CurrentSample.SampleName}] 测量完毕！\n\n请准备下一个样品 [{nextSample.SampleName}]。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CurrentSample = nextSample;
+                }
+                else
+                {
+                    MessageBox.Show("整个测量序列已全部完成！\n所有序列都采集完成后，请移步数据处理！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                
+                IsCollecting = false;
+                break;
+            }
+        }
+
+        private Task<SpectralData> WaitForNextFrameAsync()
+        {
+            var tcs = new TaskCompletionSource<SpectralData>();
+            var token = new object();
+
+            WeakReferenceMessenger.Default.Register<SpectralDataMessage>(token, (r, m) =>
+            {
+                WeakReferenceMessenger.Default.Unregister<SpectralDataMessage>(token);
+                tcs.TrySetResult(m.Value);
+            });
+
+            // 15秒超时保护
+            Task.Delay(15000).ContinueWith(_ => 
+            {
+                WeakReferenceMessenger.Default.Unregister<SpectralDataMessage>(token);
+                tcs.TrySetResult(null); 
+            });
+
+            return tcs.Task;
         }
 
         /// <summary>

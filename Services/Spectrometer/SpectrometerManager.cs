@@ -1,4 +1,4 @@
-﻿using C_Sharp_Application;
+using C_Sharp_Application;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
 using GD_ControlCenter_WPF.Models.Spectrometer;
@@ -88,7 +88,11 @@ namespace GD_ControlCenter_WPF.Services.Spectrometer
                 uint requiredSize = 0;
                 AvantesSdk.AVS_GetList(listSize, ref requiredSize, null!);
 
-                if (requiredSize == 0) return 0;
+                if (requiredSize == 0)
+                {
+                    SyncDevices(Array.Empty<AvantesSdk.AvsIdentityType>());
+                    return 0;
+                }
 
                 // 根据 SDK 要求分配内存并正式抓取设备身份信息
                 var deviceList = new AvantesSdk.AvsIdentityType[requiredSize / (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(AvantesSdk.AvsIdentityType))];
@@ -170,25 +174,46 @@ namespace GD_ControlCenter_WPF.Services.Spectrometer
         /// <param name="newIdentities">底层回传的设备身份列表。</param>
         private void SyncDevices(AvantesSdk.AvsIdentityType[] newIdentities)
         {
-            foreach (var identity in newIdentities)
+            lock (_devicesLock)
             {
-                // 已连接的序列号不重复添加
-                if (Devices.Any(d => d.Config.SerialNumber == identity.m_SerialNumber))
-                    continue;
-
-                // 实例化设备配置与驱动服务
-                var config = new SpectrometerConfig
+                // 找出断开的设备并移除
+                var newSerialNumbers = newIdentities.Select(i => i.m_SerialNumber).ToHashSet();
+                var disconnectedDevices = Devices.Where(d => d != null && d.Config != null && !newSerialNumbers.Contains(d.Config.SerialNumber)).ToList();
+                
+                foreach (var d in disconnectedDevices)
                 {
-                    SerialNumber = identity.m_SerialNumber,
-                    DeviceName = identity.m_UserFriendlyName
-                };
+                    d.DataReady -= OnDeviceDataReady;
+                    d.Dispose();
+                    Devices.Remove(d);
+                }
 
-                var service = new SpectrometerService(config);
+                // 清理任何异常产生的 null 占位符
+                var nullDevices = Devices.Where(d => d == null || d.Config == null).ToList();
+                foreach (var nd in nullDevices)
+                {
+                    Devices.Remove(nd);
+                }
 
-                // 挂载统一的数据就绪回调，所有数据第一站都会流向 Manager
-                service.DataReady += OnDeviceDataReady;
+                foreach (var identity in newIdentities)
+                {
+                    // 已连接的序列号不重复添加
+                    if (Devices.Any(d => d != null && d.Config != null && d.Config.SerialNumber == identity.m_SerialNumber))
+                        continue;
 
-                Devices.Add(service);
+                    // 实例化设备配置与驱动服务
+                    var config = new SpectrometerConfig
+                    {
+                        SerialNumber = identity.m_SerialNumber,
+                        DeviceName = identity.m_UserFriendlyName
+                    };
+
+                    var service = new SpectrometerService(config);
+
+                    // 挂载统一的数据就绪回调，所有数据第一站都会流向 Manager
+                    service.DataReady += OnDeviceDataReady;
+
+                    Devices.Add(service);
+                }
             }
         }
 

@@ -260,6 +260,27 @@ namespace GD_ControlCenter_WPF.ViewModels
         {
             _hvVM.PropertyChanged += OnHardwareStateChanged;
             _pumpVM.PropertyChanged += OnHardwareStateChanged;
+
+            // 监听光谱仪硬件池变化
+            Services.Spectrometer.SpectrometerManager.Instance.Devices.CollectionChanged += (s, e) =>
+            {
+                if (Services.Spectrometer.SpectrometerManager.Instance.Devices.Count == 0 && SpecVM.IsCurrentlyMeasuring)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        // 断开后自动恢复停止状态
+                        SpecVM.IsCurrentlyMeasuring = false;
+                        SpecVM.Model.IsConnected = false;
+                        SpecVM.Model.SerialNumber = "已断开连接";
+                        SpecVM.UpdateFromModel();
+                        StatusInfo = "未检测到光谱仪";
+                        _isToggling = false;
+
+                        // 强制清空残余波形
+                        WeakReferenceMessenger.Default.Send(new ClearWaveformMessage());
+                    });
+                }
+            };
         }
 
         /// <summary>
@@ -337,7 +358,12 @@ namespace GD_ControlCenter_WPF.ViewModels
                 {
                     StatusInfo = "正在扫描光谱仪...";
                     int count = await SpectrometerManager.Instance.DiscoverAndInitDevicesAsync();
-                    if (count == 0) { StatusInfo = "未检测到光谱仪"; return; }
+                    if (count == 0) 
+                    { 
+                        StatusInfo = "未检测到光谱仪";
+                        WeakReferenceMessenger.Default.Send(new ClearWaveformMessage());
+                        return; 
+                    }
                 }
 
                 var devices = SpectrometerManager.Instance.Devices;
@@ -364,17 +390,20 @@ namespace GD_ControlCenter_WPF.ViewModels
                         return success;
                     });
 
-                    if (allSuccess)
+                    if (allSuccess && devices.Any())
                     {
-                        SpecVM.SetService(devices.First());
-                        SpecVM.Model.SerialNumber = deviceCount == 1 ? devices.First().Config.SerialNumber : "联机模式";
+                        var firstDevice = devices.First();
+                        SpecVM.SetService(firstDevice);
+                        SpecVM.Model.SerialNumber = devices.Count == 1 ? firstDevice.Config.SerialNumber : "联机模式";
                         SpecVM.Model.IsConnected = true;
                         SpecVM.UpdateFromModel();
                         SpecVM.IsCurrentlyMeasuring = true;
-                        StatusInfo = deviceCount == 1 ? $"采集进行中: {devices.First().Config.SerialNumber}" : $"多机联机采集运行中 (共 {deviceCount} 台)";
+                        StatusInfo = devices.Count == 1 ? $"采集进行中: {firstDevice.Config.SerialNumber}" : $"多机联机采集运行中 (共 {devices.Count} 台)";
                     }
                     else
-                        StatusInfo = "部分设备初始化失败";
+                    {
+                        StatusInfo = devices.Any() ? "部分设备初始化失败" : "硬件连接在启动时断开";
+                    }
                 }
                 else
                 {
