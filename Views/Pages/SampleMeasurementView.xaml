@@ -15,11 +15,11 @@
 
     <Grid Background="{DynamicResource MaterialDesignPaper}">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="2.5*" />
+            <ColumnDefinition Width="2.2*" />
             <!-- 1. 序列 -->
             <ColumnDefinition Width="5*" />
             <!-- 2. 图表 -->
-            <ColumnDefinition Width="2.5*" />
+            <ColumnDefinition Width="2.8*" />
             <!-- 3. 控制 -->
         </Grid.ColumnDefinitions>
 
@@ -148,7 +148,7 @@
                     </Grid.RowDefinitions>
                     
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="测量强度预览" FontWeight="Bold" Opacity="0.6" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="测量强度" FontWeight="Bold" Opacity="0.6" VerticalAlignment="Center" Margin="0,0,10,0"/>
                         <ComboBox ItemsSource="{Binding CurrentSample.ElementConcentrations}"
                                   SelectedItem="{Binding SelectedPreviewElement}"
                                   DisplayMemberPath="ElementName"
@@ -166,7 +166,7 @@
                                             Background="{DynamicResource MaterialDesignPaper}"
                                             BorderThickness="1" BorderBrush="{DynamicResource MaterialDesignDivider}">
                                         <Grid>
-                                            <TextBlock Text="{Binding RepIndex, StringFormat='第 {0} 次'}" 
+                                            <TextBlock Text="{Binding RepIndex}" 
                                                        FontWeight="Bold" Opacity="0.7" VerticalAlignment="Center"/>
                                             
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -201,10 +201,18 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding SelectedPreviewElement.MeasuredIntensity, StringFormat='平均强度 - {0:F2}'}" 
-                                       FontWeight="Bold" HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Column="1" Text="{Binding SelectedPreviewElement.MeasuredRsd, StringFormat='RSD - {0:F2}%'}" 
-                                       FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="平均强度：" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBox Text="{Binding SelectedPreviewElement.MeasuredIntensity, StringFormat='{}{0:F2}', Mode=OneWay}" 
+                                         IsReadOnly="True" BorderThickness="0" Background="Transparent" 
+                                         FontWeight="Bold" VerticalAlignment="Center" Padding="0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="RSD：" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBox Text="{Binding SelectedPreviewElement.MeasuredRsd, StringFormat='{}{0:F2}%', Mode=OneWay}" 
+                                         IsReadOnly="True" BorderThickness="0" Background="Transparent" 
+                                         FontWeight="Bold" VerticalAlignment="Center" Padding="0"/>
+                            </StackPanel>
                         </Grid>
                     </Border>
                 </Grid>

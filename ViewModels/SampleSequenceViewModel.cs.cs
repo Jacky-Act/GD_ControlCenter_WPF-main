@@ -105,7 +105,8 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         partial void OnGlobalRepeatsChanged(int value)
         {
-            if (value < 0) { GlobalRepeats = 0; return; }
+            if (value < 1) { GlobalRepeats = 1; return; }
+            if (value > 10000) { GlobalRepeats = 10000; return; }
             if (_configService == null) return;
             var config = _configService.Load();
             config.LastSampleRepeats = value;
@@ -117,7 +118,8 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         partial void OnGlobalIntervalChanged(double value)
         {
-            if (value < 0) { GlobalInterval = 0.0; return; }
+            if (value < 0.0) { GlobalInterval = 0.0; return; }
+            if (value > 3600.0) { GlobalInterval = 3600.0; return; }
             if (_configService == null) return;
             var config = _configService.Load();
             config.LastGlobalInterval = value;

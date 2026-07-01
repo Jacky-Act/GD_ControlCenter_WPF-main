@@ -44,16 +44,16 @@
         <materialDesign:Card Grid.Row="1" Margin="0,0,0,10" UniformCornerRadius="6" materialDesign:ElevationAssist.Elevation="Dp1" Background="#F3F4F6">
             <StackPanel Orientation="Horizontal" Margin="15,10">
                 <TextBlock Text="标准样品:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
-                <TextBox Width="50" Text="{Binding BatchStandardCount}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4"/>
+                <TextBox Width="75" Text="{Binding BatchStandardCount}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4,4,4,6"/>
 
                 <TextBlock Text="待测样品:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
-                <TextBox Width="50" Text="{Binding BatchUnknownCount}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4"/>
+                <TextBox Width="75" Text="{Binding BatchUnknownCount}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4,4,4,6"/>
 
                 <TextBlock Text="重复次数:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
-                <TextBox Width="50" Text="{Binding GlobalRepeats}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4"/>
+                <TextBox Width="75" Text="{Binding GlobalRepeats}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4,4,4,6"/>
                 
                 <TextBlock Text="间隔(s):" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
-                <TextBox Width="50" Text="{Binding GlobalInterval, StringFormat={}{0:F1}}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4"/>
+                <TextBox Width="75" Text="{Binding GlobalInterval, StringFormat={}{0:F1}}" TextAlignment="Center" Margin="0,0,15,0" FontSize="18" FontWeight="Bold" Padding="4,4,4,6"/>
 
                 <TextBlock Text="浓度单位:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="14"/>
                 <ComboBox Width="65" ItemsSource="{Binding AvailableUnits}" SelectedItem="{Binding ConcentrationUnit}" Margin="0,0,20,0" FontSize="16" FontWeight="Bold" HorizontalContentAlignment="Center"/>

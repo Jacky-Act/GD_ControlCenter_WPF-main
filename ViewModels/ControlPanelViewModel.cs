@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
@@ -516,16 +516,6 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         /// <summary> 发送全局消息请求恢复图表最大极限视野。 </summary>
         [RelayCommand] private void MaxRange() => WeakReferenceMessenger.Default.Send(new MaxRangeRequestMessage());
-
-        /// <summary> 启动自动化采样序列参数配置对话框。 </summary>
-        [RelayCommand]
-        private void SamplingConfig()
-        {
-            var window = new GD_ControlCenter_WPF.Views.Dialogs.SamplingSettingWindow();
-            window.DataContext = new GD_ControlCenter_WPF.ViewModels.Dialogs.SamplingSettingViewModel(_jsonConfigService, _jsonConfigService.Load(), () => window.Close());
-            window.Owner = Application.Current.MainWindow;
-            window.ShowDialog();
-        }
 
         /// <summary> 启动三维平台控制与自动校准对话框。 </summary>
         [RelayCommand]

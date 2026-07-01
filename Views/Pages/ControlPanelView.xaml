@@ -48,11 +48,10 @@
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="30*" />
-                    <ColumnDefinition Width="17*" />
-                    <ColumnDefinition Width="12*" />
-                    <ColumnDefinition Width="12*" />
-                    <ColumnDefinition Width="17*" />
-                    <ColumnDefinition Width="12*" />
+                    <ColumnDefinition Width="17.5*" />
+                    <ColumnDefinition Width="17.5*" />
+                    <ColumnDefinition Width="17.5*" />
+                    <ColumnDefinition Width="17.5*" />
                 </Grid.ColumnDefinitions>
 
                 <components:DeviceControlCard Grid.Column="0" 
@@ -60,17 +59,18 @@
                                               Margin="5,2.5,0,5"/>
 
                 <materialDesign:Card Grid.Column="1" Margin="5,2.5,0,5" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
-                    <Grid Margin="8">
+                    <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="转向阀门" FontSize="12" Foreground="{DynamicResource PurpleThemeBrush}" Opacity="0.5" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <!-- 左上角小标题 -->
+                        <TextBlock Grid.Row="0" Margin="8" Text="转向阀门" FontSize="12" Foreground="{DynamicResource PurpleThemeBrush}" Opacity="0.5" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <TextBlock x:Name="TxtCH1" Text="1" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="14" FontWeight="Bold">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource PurpleThemeBrush}"/>
+                                        <Setter Property="Foreground" Value="{StaticResource PurpleThemeBrush}"/>
                                         <Setter Property="Opacity" Value="0.5"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsSteeringValveActive}" Value="False">
@@ -120,18 +120,8 @@
                     </Button>
                 </materialDesign:Card>
 
-                <materialDesign:Card Grid.Column="3" Margin="5,2.5,0,5" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
-                    <Button Style="{StaticResource MaterialDesignFlatButton}"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                            Height="Auto" Padding="0"
-                            Command="{Binding SamplingConfigCommand}">
-                        <TextBlock Text="采样配置" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource PrimaryHueMidBrush}" 
-                                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    </Button>
-                </materialDesign:Card>
-
                 <!-- 5. 测样模式切换卡片 -->
-                <materialDesign:Card Grid.Column="4" Margin="5,2.5,0,5" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
+                <materialDesign:Card Grid.Column="3" Margin="5,2.5,0,5" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
                     <Grid Margin="8">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -191,7 +181,7 @@
                 </materialDesign:Card>
 
                 <!-- 6. 点火按钮卡片 -->
-                <materialDesign:Card Grid.Column="5" Margin="5,2.5,5,5" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
+                <materialDesign:Card Grid.Column="4" Margin="5,2.5,5,5" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
                     <Button Style="{StaticResource MaterialDesignFlatButton}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Height="Auto" Padding="0" Command="{Binding FireCommand}">
                         <TextBlock Text=" 点 火 " FontSize="24" FontWeight="Bold" Foreground="IndianRed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                     </Button>
