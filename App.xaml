@@ -52,9 +52,6 @@
                 <pages:DataProcessingView />
             </DataTemplate>
 
-            <DataTemplate DataType="{x:Type vm:ReportGenerationViewModel}">
-                <pages:ReportGenerationView />
-            </DataTemplate>
 
             <helpers:BatteryWidthConverter x:Key="BatteryWidthConverter"/>
             <helpers:BatteryStatusColorConverter x:Key="BatteryStatusColorConverter"/>

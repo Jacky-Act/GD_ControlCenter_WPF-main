@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="GD_ControlCenter_WPF.Views.Components.NavigationView"
+<UserControl x:Class="GD_ControlCenter_WPF.Views.Components.NavigationView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -84,16 +84,6 @@
                         <StackPanel Width="52" Margin="0,8">
                             <materialDesign:PackIcon Kind="DatabaseEdit" HorizontalAlignment="Center" Width="24" Height="24"/>
                             <TextBlock Text="数据处理" HorizontalAlignment="Center" FontSize="11"/>
-                        </StackPanel>
-                    </TabItem.Header>
-                </TabItem>
-
-                <!-- 6. 报告生成 (新增) -->
-                <TabItem x:Name="ReportGenerationTab">
-                    <TabItem.Header>
-                        <StackPanel Width="52" Margin="0,8">
-                            <materialDesign:PackIcon Kind="FileChart" HorizontalAlignment="Center" Width="24" Height="24"/>
-                            <TextBlock Text="报告生成" HorizontalAlignment="Center" FontSize="11"/>
                         </StackPanel>
                     </TabItem.Header>
                 </TabItem>
