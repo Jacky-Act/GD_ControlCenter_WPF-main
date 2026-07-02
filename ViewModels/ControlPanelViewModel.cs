@@ -230,6 +230,10 @@ namespace GD_ControlCenter_WPF.ViewModels
         private void InitSubModules()
         {
             var appConfig = _jsonConfigService.Load();
+            
+            // 同步配置文件中的初始测样模式状态
+            IsFlowInjectionMode = appConfig.CurrentMeasurementMode == MeasurementMode.FlowInjection;
+
             var specConfig = new SpectrometerConfig();
 
             if (appConfig.LastIntegrationTime > 0) specConfig.IntegrationTimeMs = appConfig.LastIntegrationTime;

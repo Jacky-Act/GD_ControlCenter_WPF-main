@@ -30,7 +30,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Text="待测任务序列" FontWeight="Bold" FontSize="16" Margin="0,0,0,10" Opacity="0.6"/>
+                <TextBlock Text="连续进样测量序列" FontWeight="Bold" FontSize="16" Margin="0,0,0,10" Opacity="0.6"/>
                 <DataGrid Grid.Row="1" ItemsSource="{Binding MeasurementSequence}" SelectedItem="{Binding CurrentSample}"
                           AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                           IsEnabled="{Binding IsCollecting, Converter={StaticResource InverseBoolConverter}}">
@@ -144,15 +144,22 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="测量强度" FontWeight="Bold" Opacity="0.6" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <ComboBox ItemsSource="{Binding CurrentSample.ElementConcentrations}"
+                    <Grid VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Column="0" Text="测量强度" FontWeight="Bold" Opacity="0.6" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding CurrentSample.ElementConcentrations}"
                                   SelectedItem="{Binding SelectedPreviewElement}"
                                   DisplayMemberPath="ElementName"
                                   materialDesign:HintAssist.Hint="切换元素"
-                                  Width="120"
+                                  Width="160"
+                                  HorizontalAlignment="Right"
                                   VerticalAlignment="Center"/>
-                    </StackPanel>
+                    </Grid>
 
                     <!-- 动态测样列表 -->
                     <ScrollViewer Grid.Row="1" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto">
@@ -226,7 +233,7 @@
                                 <Setter Property="Command" Value="{Binding StartCollectingCommand}"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsCollecting}" Value="True">
-                                        <Setter Property="Content" Value="中止采集 (Cancel)"/>
+                                        <Setter Property="Content" Value="中止采集"/>
                                         <Setter Property="Background" Value="IndianRed"/>
                                         <Setter Property="BorderBrush" Value="IndianRed"/>
                                         <Setter Property="Command" Value="{Binding StopSequenceCommand}"/>

@@ -87,7 +87,11 @@ namespace GD_ControlCenter_WPF.Models.Messages
 
     public class SampleSequenceChangedMessage : ValueChangedMessage<List<SampleItemModel>>
     {
-        public SampleSequenceChangedMessage(List<SampleItemModel> value) : base(value) { }
+        public bool IsOverwrite { get; }
+        public SampleSequenceChangedMessage(List<SampleItemModel> value, bool isOverwrite = true) : base(value) 
+        {
+            IsOverwrite = isOverwrite;
+        }
     }
 
     public class MeasurementDataUpdatedMessage : ValueChangedMessage<List<SampleItemModel>>

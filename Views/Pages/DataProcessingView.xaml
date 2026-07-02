@@ -20,6 +20,21 @@
             <!-- 右列：数据表格与底层操作 -->
         </Grid.ColumnDefinitions>
 
+        <!-- 顶部悬浮提示卡片 (不阻挡交互) -->
+        <materialDesign:Card Grid.ColumnSpan="2" 
+                             HorizontalAlignment="Center" VerticalAlignment="Top" 
+                             Margin="0,10,0,0" Padding="16,8"
+                             Background="#CC212121"
+                             Foreground="White"
+                             UniformCornerRadius="4"
+                             Panel.ZIndex="100"
+                             Visibility="{Binding ShowAlert, Converter={StaticResource BoolToVis}}">
+            <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="InformationOutline" Width="20" Height="20" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding AlertMessage}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+        </materialDesign:Card>
+
         <!-- ================= 左侧列 (视觉与指标) ================= -->
         <Grid Grid.Column="0" Margin="0,0,6,0">
             <Grid.RowDefinitions>
@@ -141,13 +156,30 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Text="标准点校准数据 (双击启用/禁用)" Style="{StaticResource MaterialDesignSubtitle2TextBlock}" Margin="0,0,0,8" Opacity="0.6"/>
+                        <TextBlock Text="校准点数据" Style="{StaticResource MaterialDesignSubtitle2TextBlock}" Margin="0,0,0,8" Opacity="0.6"/>
                         <DataGrid Grid.Row="1" ItemsSource="{Binding StandardPoints}" AutoGenerateColumns="False" CanUserAddRows="False">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="标准品名称" Binding="{Binding Name}" Width="1.5*"/>
-                                <DataGridTextColumn Header="已知浓度" Binding="{Binding Concentration}" Width="*"/>
-                                <DataGridTextColumn Header="响应强度" Binding="{Binding Intensity, StringFormat={}{0:F0}}" Width="*"/>
-                                <DataGridCheckBoxColumn Header="启用" Binding="{Binding IsEnabled}" Width="Auto"/>
+                                <DataGridTextColumn Header="标准品名称" Binding="{Binding Name}" Width="1.5*" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="已知浓度" Binding="{Binding Concentration}" Width="*" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="响应强度" Binding="{Binding Intensity, StringFormat={}{0:F0}}" Width="*" IsReadOnly="True"/>
+                                <DataGridTemplateColumn Header="启用" Width="Auto">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsEnabled, UpdateSourceTrigger=PropertyChanged}" 
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <CheckBox.Style>
+                                                    <Style TargetType="CheckBox" BasedOn="{StaticResource MaterialDesignCheckBox}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsBlank}" Value="True">
+                                                                <Setter Property="Visibility" Value="Hidden"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </CheckBox.Style>
+                                            </CheckBox>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
@@ -184,7 +216,7 @@
                             <DataGridTextColumn Header="样品名称" Binding="{Binding SampleName}" Width="1.5*"/>
                             <DataGridTextColumn Header="测量强度" Binding="{Binding Intensity, StringFormat={}{0:F0}}" Width="*"/>
                             <DataGridTextColumn Header="相对偏差" Binding="{Binding RSD, StringFormat=± {0:F2}%}" Width="0.8*"/>
-                            <DataGridTextColumn Header="算得浓度" Binding="{Binding CalculatedConc, StringFormat={}{0:F3}}" 
+                            <DataGridTextColumn Header="算得浓度" Binding="{Binding CalculatedConc}" 
                                                 Width="*" FontWeight="Bold" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
                         </DataGrid.Columns>
                     </DataGrid>

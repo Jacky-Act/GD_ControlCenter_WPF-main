@@ -344,6 +344,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             var data = _storageService.LoadTemplate(SelectedTemplate);
             if (data != null)
             {
+                _isDirtyOverwrite = true;
                 Samples.Clear();
                 // 识别模板中的元素名单，提取名称和波长
                 var templateElements = data.FirstOrDefault()?.ElementConcentrations
@@ -438,6 +439,7 @@ namespace GD_ControlCenter_WPF.ViewModels
 
                     var newConfigs = detectedElements.Select(e => new AnalysisConfigItem { ElementName = e }).ToList();
 
+                    _isDirtyOverwrite = true;
                     Samples.Clear();
                     foreach (var item in importedData) Samples.Add(item);
 
@@ -471,6 +473,8 @@ namespace GD_ControlCenter_WPF.ViewModels
             }
         }
 
+        private bool _isDirtyOverwrite = true;
+
         // --- 表格操作命令 ---
 
         [RelayCommand]
@@ -478,10 +482,11 @@ namespace GD_ControlCenter_WPF.ViewModels
         {
             if (Samples.Count > 0)
             {
-                var result = MessageBox.Show("一键生成将覆盖当前序列中的所有内容，是否继续？", "操作确认", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                if (result != MessageBoxResult.Yes) return;
+                var result = MessageBox.Show("一键生成将清空当前所有数据，确认继续吗？", "警告", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (result == MessageBoxResult.No) return;
             }
 
+            _isDirtyOverwrite = true;
             _isHandlingTemplateChange = true;
             if (!SavedTemplates.Contains("未使用模板"))
                 SavedTemplates.Insert(0, "未使用模板");
@@ -567,6 +572,29 @@ namespace GD_ControlCenter_WPF.ViewModels
                 return;
             }
 
+            // 检查同一元素的标液浓度是否重复
+            var standardSamples = Samples.Where(s => s.Type == SampleType.标液).ToList();
+            if (standardSamples.Count > 1)
+            {
+                var elementNames = standardSamples.First().ElementConcentrations.Select(c => c.ElementName).ToList();
+                foreach (var elementName in elementNames)
+                {
+                    var concentrations = new HashSet<double>();
+                    foreach (var sample in standardSamples)
+                    {
+                        var concModel = sample.ElementConcentrations.FirstOrDefault(c => c.ElementName == elementName);
+                        if (concModel != null && double.TryParse(concModel.ConcentrationValue, out double concValue))
+                        {
+                            if (!concentrations.Add(concValue))
+                            {
+                                MessageBox.Show($"应用失败：元素 '{elementName}' 在多个标准溶液中配置了相同的浓度值 ({concValue})！\n\n同一元素的标准溶液浓度必须各不相同，请修改后重试。", "标液浓度重复拦截", MessageBoxButton.OK, MessageBoxImage.Error);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
             // 检查重名
             var duplicateNames = Samples.GroupBy(s => s.SampleName).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
             if (duplicateNames.Count > 0)
@@ -575,46 +603,47 @@ namespace GD_ControlCenter_WPF.ViewModels
                 return;
             }
 
-            // 【新需求】应用时，将全局的 Repeats 写入每个 SampleItemModel
-            foreach (var sample in Samples)
-            {
-                sample.Repeats = GlobalRepeats;
-                sample.Interval = GlobalInterval;
-            }
-
-            // 将当前序列深拷贝后推送到流动注射/测量模块，防止下游模块的修改污染本页面的原始数据
-            var clonedSamples = Samples.Select(s => new SampleItemModel
-            {
-                SampleName = s.SampleName,
-                Type = s.Type,
-                Repeats = s.Repeats,
-                Interval = s.Interval,
-                Status = s.Status,
-                ElementConcentrations = new ObservableCollection<ElementConcentrationModel>(
-                    s.ElementConcentrations.Select(c => new ElementConcentrationModel
-                    {
-                        ElementName = c.ElementName,
-                        ConcentrationValue = c.ConcentrationValue,
-                        MeasuredIntensity = c.MeasuredIntensity,
-                        MeasuredRsd = c.MeasuredRsd
-                    }))
-            }).ToList();
-
-            WeakReferenceMessenger.Default.Send(new SampleSequenceChangedMessage(clonedSamples));
-            
-            // 标记已应用
-            IsSequenceApplied = true;
-
-            MessageBox.Show("进样序列已成功下发至测量模块！\n点击确定后将为您自动跳转至测样分析界面。", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            // 跳转到测样分析
-            WeakReferenceMessenger.Default.Send(new NavigateMessage("AnalysisWorkstation"));
+        // 【新需求】应用时，将全局的 Repeats 写入每个 SampleItemModel
+        foreach (var sample in Samples)
+        {
+            sample.Repeats = GlobalRepeats;
+            sample.Interval = GlobalInterval;
         }
 
-        // --- 私有辅助 ---
-
-        private SampleItemModel CreateNewSample(SampleType type, string name)
+        // 将当前序列深拷贝后推送到流动注射/测量模块，防止下游模块的修改污染本页面的原始数据
+        var clonedSamples = Samples.Select(s => new SampleItemModel
         {
+            SampleName = s.SampleName,
+            Type = s.Type,
+            Repeats = s.Repeats,
+            Interval = s.Interval,
+            Status = s.Status,
+            ElementConcentrations = new ObservableCollection<ElementConcentrationModel>(
+                s.ElementConcentrations.Select(c => new ElementConcentrationModel
+                {
+                    ElementName = c.ElementName,
+                    ConcentrationValue = c.ConcentrationValue,
+                    MeasuredIntensity = c.MeasuredIntensity,
+                    MeasuredRsd = c.MeasuredRsd
+                }))
+        }).ToList();
+
+        WeakReferenceMessenger.Default.Send(new SampleSequenceChangedMessage(clonedSamples, _isDirtyOverwrite));
+        _isDirtyOverwrite = false;
+        
+        // 标记已应用
+        IsSequenceApplied = true;
+
+        MessageBox.Show("进样序列已成功下发至测量模块！\n点击确定后将为您自动跳转至测样分析界面。", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+
+        // 跳转到测样分析
+        WeakReferenceMessenger.Default.Send(new NavigateMessage("AnalysisWorkstation"));
+    }
+
+    // --- 私有辅助 ---
+
+    private SampleItemModel CreateNewSample(SampleType type, string name)
+    {
             var sample = new SampleItemModel { Type = type, SampleName = name };
             foreach (var el in _activeElements)
             {
@@ -648,6 +677,34 @@ namespace GD_ControlCenter_WPF.ViewModels
                 }
             }
             item.SampleName = $"{prefix}{maxIndex + 1}";
+        }
+
+        public void CheckDuplicateStandardConcentration()
+        {
+            var standardSamples = Samples.Where(s => s.Type == SampleType.标液).ToList();
+            if (standardSamples.Count <= 1) return;
+
+            var elementNames = standardSamples.First().ElementConcentrations.Select(c => c.ElementName).ToList();
+            foreach (var elementName in elementNames)
+            {
+                var concentrations = new HashSet<double>();
+                foreach (var sample in standardSamples)
+                {
+                    var concModel = sample.ElementConcentrations.FirstOrDefault(c => c.ElementName == elementName);
+                    if (concModel != null && double.TryParse(concModel.ConcentrationValue, out double concValue))
+                    {
+                        if (!concentrations.Add(concValue))
+                        {
+                            Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                MessageBox.Show($"元素 '{elementName}' 在多个标准溶液中配置了相同的浓度值 ({concValue})！\n\n同一元素的标准溶液浓度必须各不相同，请修改。", "标液浓度重复", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                concModel.ConcentrationValue = string.Empty;
+                            }));
+                            return;
+                        }
+                    }
+                }
+            }
         }
     }
 }

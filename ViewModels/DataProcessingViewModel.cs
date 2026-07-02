@@ -20,9 +20,10 @@ namespace GD_ControlCenter_WPF.ViewModels
     {
         [ObservableProperty] private string _sampleName = string.Empty;
         [ObservableProperty] private string _sampleType = string.Empty;
+        [ObservableProperty] private string _status = "等待";
         [ObservableProperty] private double _intensity;
         [ObservableProperty] private double _rSD;
-        [ObservableProperty] private double _calculatedConc;
+        [ObservableProperty] private string _calculatedConc = "-";
     }
 
     /// <summary> 标准点/空白明细行：用于构建校准曲线 </summary>
@@ -35,6 +36,8 @@ namespace GD_ControlCenter_WPF.ViewModels
         public double Concentration { get; set; }
         public double Intensity { get; set; }
         public double RSD { get; set; }
+
+        public bool IsBlank => Type == SampleType.空白;
 
         [ObservableProperty] private bool _isEnabled = true;
     }
@@ -50,7 +53,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         private List<AnalysisConfigItem> _activeConfigs = new();
 
         // 绘图回调，由 DataProcessingView.xaml.cs 订阅
-        public Action<double, double, List<StandardPointRow>>? RequestPlotUpdate { get; set; }
+        public Action<double, double, List<StandardPointRow>, string, bool>? RequestPlotUpdate { get; set; }
 
         #region 2. UI 界面属性
 
@@ -135,6 +138,9 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         #region 5. 核心逻辑引擎
 
+        [ObservableProperty] private bool _showAlert;
+        [ObservableProperty] private string _alertMessage = string.Empty;
+
         /// <summary>
         /// 数据分区逻辑：将原始数据根据[当前选定元素]拆分为“左待测”与“右标准”
         /// </summary>
@@ -176,6 +182,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                         {
                             SampleName = sample.SampleName,
                             SampleType = "待测液",
+                            Status = sample.Status,
                             Intensity = target.MeasuredIntensity,
                             RSD = target.MeasuredRsd
                         });
@@ -200,8 +207,23 @@ namespace GD_ControlCenter_WPF.ViewModels
 
                 HasUnknownSamples = FilteredResults.Any();
 
-                // 填充完数据后，手动触发一次拟合逻辑以刷新指标和图表
-                CalculateFitting();
+                bool allStandardsCompleted = _rawFullSequence
+                    .Where(s => s.Type == SampleType.标液 || s.Type == SampleType.空白)
+                    .All(s => s.Status == "已完成");
+
+                if (allStandardsCompleted)
+                {
+                    _ = CalculateFitting();
+                }
+                else
+                {
+                    EquationText = "未完成测量";
+                    RSquaredText = "0.0000";
+                    LodValue = 0;
+                    var plotPoints = StandardPoints.ToList();
+                    string unit = _rawFullSequence.FirstOrDefault()?.ConcentrationUnit ?? "ppm";
+                    RequestPlotUpdate?.Invoke(0, 0, plotPoints, unit, false);
+                }
             });
         }
 
@@ -210,13 +232,30 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// 如果选择了历史曲线，则直接套用历史曲线不拟合。
         /// </summary>
         [RelayCommand]
-        public void CalculateFitting()
+        public async System.Threading.Tasks.Task CalculateFitting()
         {
+            if (_rawFullSequence != null)
+            {
+                bool allStandardsCompleted = _rawFullSequence
+                    .Where(s => s.Type == SampleType.标液 || s.Type == SampleType.空白)
+                    .All(s => s.Status == "已完成");
+                
+                if (!allStandardsCompleted)
+                {
+                    AlertMessage = "标准和空白序列尚未全部测量完成！";
+                    ShowAlert = true;
+                    await System.Threading.Tasks.Task.Delay(1000);
+                    ShowAlert = false;
+                    return;
+                }
+            }
             var config = _activeConfigs.FirstOrDefault(c => (c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})") == SelectedElement);
             
             double slope = 0;
             double intercept = 0;
             double r2 = 0;
+
+            List<StandardPointRow> plotPoints = new();
 
             if (config != null && config.FittingCurve != "测量校准曲线")
             {
@@ -242,20 +281,22 @@ namespace GD_ControlCenter_WPF.ViewModels
                     RSquaredText = "0.0000";
                     return;
                 }
+                plotPoints = StandardPoints.Where(p => p.IsEnabled && !p.IsBlank).ToList();
             }
             else
             {
                 // 使用当前标准点拟合
                 CanSaveCurve = true;
 
-                // 1. 提取所有被勾选为“启用”的标准点（包含空白点）
-                var validPoints = StandardPoints.Where(p => p.IsEnabled).ToList();
+                var validPoints = StandardPoints.Where(p => p.IsEnabled && !p.IsBlank).ToList();
                 if (validPoints.Count < 2)
                 {
                     EquationText = "拟合点不足";
                     RSquaredText = "0.0000";
                     return;
                 }
+
+                plotPoints = validPoints;
 
                 // --- 2. 最小二乘法计算逻辑 ---
                 int n = validPoints.Count;
@@ -277,26 +318,31 @@ namespace GD_ControlCenter_WPF.ViewModels
                 r2 = (ssTot == 0) ? 1 : 1 - (ssRes / ssTot);
 
                 // --- 3. 计算分析性能指标 (LOD) ---
-                var blank = validPoints.FirstOrDefault(p => p.Type == SampleType.空白) ?? validPoints[0];
+                var blank = StandardPoints.FirstOrDefault(p => p.IsBlank) ?? validPoints[0];
                 double blankSD = blank.Intensity * (blank.RSD / 100.0);
                 LodValue = (slope != 0) ? (3.0 * blankSD) / slope : 0;
 
-                EquationText = $"y = {slope:F4}x + ({intercept:F4})";
+                EquationText = $"y = {slope:F4}x + {(intercept >= 0 ? "+" : "")}{intercept:F4}";
                 RSquaredText = r2.ToString("F4");
             }
 
             // --- 4. 浓度回算：更新左侧所有待测溶液的浓度结果 ---
             foreach (var row in FilteredResults)
             {
-                if (slope != 0)
+                if (slope != 0 && row.Status == "已完成")
                 {
                     // x = (y - b) / k
-                    row.CalculatedConc = Math.Round((row.Intensity - intercept) / slope, 3);
+                    row.CalculatedConc = Math.Round((row.Intensity - intercept) / slope, 3).ToString("F3");
+                }
+                else
+                {
+                    row.CalculatedConc = "-";
                 }
             }
 
             // --- 5. 发送重绘信号给 View 层进行 ScottPlot 渲染 ---
-            RequestPlotUpdate?.Invoke(slope, intercept, StandardPoints.Where(p => p.IsEnabled).ToList());
+            string unit = _rawFullSequence?.FirstOrDefault()?.ConcentrationUnit ?? "ppm";
+            RequestPlotUpdate?.Invoke(slope, intercept, plotPoints, unit, true);
         }
 
         [RelayCommand]

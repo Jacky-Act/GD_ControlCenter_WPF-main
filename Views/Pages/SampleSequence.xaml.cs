@@ -19,6 +19,9 @@ namespace GD_ControlCenter_WPF.Views.Pages
             {
                 Dispatcher.Invoke(() => RebuildDynamicColumns(m.Value));
             });
+
+            // 在路由事件层面统一处理所有 TextBox 的 LostFocus，避免 XamlReader.Parse 时无法绑定后台方法的问题
+            this.AddHandler(TextBox.LostFocusEvent, new RoutedEventHandler(EditTxt_LostFocus));
         }
 
         private void ComboBox_DropDownOpened(object sender, System.EventArgs e)
@@ -135,6 +138,14 @@ namespace GD_ControlCenter_WPF.Views.Pages
 
                 // 插入到正确位置
                 SequenceDataGrid.Columns.Insert(insertPos + i, newCol);
+            }
+        }
+
+        private void EditTxt_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext is SampleSequenceViewModel vm)
+            {
+                vm.CheckDuplicateStandardConcentration();
             }
         }
 

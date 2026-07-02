@@ -107,15 +107,54 @@ namespace GD_ControlCenter_WPF.ViewModels
             // 监听样品序列页面下发的测量任务名单
             WeakReferenceMessenger.Default.Register<SampleSequenceChangedMessage>(this, (r, m) =>
             {
-                MeasurementSequence = new ObservableCollection<SampleItemModel>(m.Value);
-                if (MeasurementSequence.Count > 0)
+                if (m.IsOverwrite)
                 {
-                    CurrentSample = MeasurementSequence[0]; // 默认选中第一个样品
+                    MeasurementSequence = new ObservableCollection<SampleItemModel>(m.Value);
+                }
+                else
+                {
+                    // 增量合并：保留相同名称样品的已测数据状态
+                    var newSeq = new ObservableCollection<SampleItemModel>();
+                    foreach (var newSample in m.Value)
+                    {
+                        var existing = MeasurementSequence?.FirstOrDefault(s => s.SampleName == newSample.SampleName);
+                        if (existing != null)
+                        {
+                            newSample.Status = existing.Status;
+                            foreach (var ec in newSample.ElementConcentrations)
+                            {
+                                var existingEc = existing.ElementConcentrations.FirstOrDefault(e => e.ElementName == ec.ElementName);
+                                if (existingEc != null)
+                                {
+                                    ec.MeasuredIntensity = existingEc.MeasuredIntensity;
+                                    ec.MeasuredRsd = existingEc.MeasuredRsd;
+                                    ec.Reps = new ObservableCollection<MeasurementRepModel>(existingEc.Reps.Select(rep => new MeasurementRepModel 
+                                    {
+                                        RepIndex = rep.RepIndex,
+                                        Intensity = rep.Intensity,
+                                        IsMeasuring = rep.IsMeasuring
+                                    }));
+                                }
+                            }
+                            newSeq.Add(newSample);
+                        }
+                        else
+                        {
+                            newSeq.Add(newSample);
+                        }
+                    }
+                    MeasurementSequence = newSeq;
+                }
+
+                if (MeasurementSequence.Count > 0 && CurrentSample == null) 
+                {
+                    CurrentSample = MeasurementSequence[0]; 
+                }
+                else if (CurrentSample != null)
+                {
+                    CurrentSample = MeasurementSequence.FirstOrDefault(s => s.SampleName == CurrentSample.SampleName) ?? MeasurementSequence.FirstOrDefault();
                 }
                 
-                // 【已断开寻峰匹配逻辑】直接使用下发的元素列表，不再根据红线强制重刷槽位
-                // RefreshElementsFromTracker(); 
-
                 // 同步下拉框供图表局部查看使用
                 PickedElements.Clear();
                 if (CurrentSample != null)
@@ -126,6 +165,11 @@ namespace GD_ControlCenter_WPF.ViewModels
                     }
                 }
                 if (PickedElements.Count > 0) SelectedElement = PickedElements[0];
+
+                // 同步到其他模块（如数据处理），确保图表看到的是保留历史后的状态
+                CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(
+                    new GD_ControlCenter_WPF.Models.Messages.MeasurementDataUpdatedMessage(MeasurementSequence.ToList())
+                );
             });
 
             // 软件启动或页面初始化时，主动同步一次主界面的峰线
@@ -388,6 +432,24 @@ namespace GD_ControlCenter_WPF.ViewModels
         {
             while (CurrentSample != null && IsCollecting)
             {
+                // 如果该序列已经测量过，则清空之前的数据
+                if (CurrentSample.Status == "已完成")
+                {
+                    foreach (var ec in CurrentSample.ElementConcentrations)
+                    {
+                        ec.MeasuredIntensity = 0;
+                        ec.MeasuredRsd = 0;
+                        foreach (var rep in ec.Reps)
+                        {
+                            rep.Intensity = null;
+                        }
+                    }
+                    // 发送消息通知界面数据已被清空
+                    CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(
+                        new GD_ControlCenter_WPF.Models.Messages.MeasurementDataUpdatedMessage(MeasurementSequence.ToList())
+                    );
+                }
+
                 CurrentSample.Status = "采集数据中...";
 
                 // 按积分时间和平均次数分组

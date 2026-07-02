@@ -15,41 +15,56 @@ namespace GD_ControlCenter_WPF.Views.Pages
                 if (DataContext is DataProcessingViewModel vm)
                 {
                     // 订阅绘图请求
-                    vm.RequestPlotUpdate = (slope, intercept, points) => {
-                        UpdateChart(slope, intercept, points);
+                    vm.RequestPlotUpdate = (slope, intercept, points, unit, isValidFit) => {
+                        UpdateChart(slope, intercept, points, unit, isValidFit);
                     };
                 }
             };
         }
 
-        private void UpdateChart(double k, double b, System.Collections.Generic.List<StandardPointRow> points)
+        private void UpdateChart(double k, double b, System.Collections.Generic.List<StandardPointRow> points, string unit, bool isValidFit)
         {
             CalibrationPlot.Plot.Clear();
 
-            // 1. 画标准点 (散点)
-            double[] xs = points.Select(p => p.Concentration).ToArray();
-            double[] ys = points.Select(p => p.Intensity).ToArray();
-            var sp = CalibrationPlot.Plot.Add.Scatter(xs, ys);
-            sp.LineWidth = 0; // 不连线
-            sp.MarkerSize = 10;
-            sp.Color = ScottPlot.Colors.Orange;
-
-            // 2. 画拟合线
             double minX = 0;
             double maxX = 100;
 
-            if (xs.Length > 0)
+            if (points != null && points.Count > 0)
             {
+                // 1. 画标准点 (散点)
+                double[] xs = points.Select(p => p.Concentration).ToArray();
+                double[] ys = points.Select(p => p.Intensity).ToArray();
+
                 minX = xs.Min();
                 maxX = xs.Max() * 1.1;
                 if (Math.Abs(maxX - minX) < 1e-5) maxX = minX + 10; 
+
+                var sp = CalibrationPlot.Plot.Add.Scatter(xs, ys);
+                sp.LineWidth = 0; // 不连线
+                sp.MarkerSize = 12;
+                sp.Color = ScottPlot.Color.FromHex("#1976D2"); // 主题蓝
             }
-            // 根据 y = kx + b 计算起始和终止点
-            var line = CalibrationPlot.Plot.Add.Line(minX, k * minX + b, maxX, k * maxX + b);
-            line.Color = ScottPlot.Colors.Cyan;
-            line.LineWidth = 2;
+
+            if (isValidFit)
+            {
+                // 2. 画拟合线 (从 x=0 开始绘制)
+                var line = CalibrationPlot.Plot.Add.Line(0, b, maxX, k * maxX + b);
+                line.Color = ScottPlot.Color.FromHex("#F44336"); // 醒目红
+                line.LineWidth = 2;
+            }
+
+            // 设置坐标轴标签和字体
+            CalibrationPlot.Plot.Axes.Bottom.Label.Text = $"浓度 ({unit})";
+            CalibrationPlot.Plot.Axes.Left.Label.Text = "强度";
+            
+            CalibrationPlot.Plot.Axes.Bottom.Label.FontName = "Microsoft YaHei";
+            CalibrationPlot.Plot.Axes.Left.Label.FontName = "Microsoft YaHei";
+
+            // 设置网格颜色，让图表看起来更清爽
+            CalibrationPlot.Plot.Grid.MajorLineColor = ScottPlot.Color.FromHex("#eeeeee");
 
             CalibrationPlot.Plot.Axes.AutoScale();
+
             CalibrationPlot.Refresh();
         }
     }

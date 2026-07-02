@@ -153,7 +153,7 @@
                             <ToggleButton Style="{StaticResource PurpleSwitchStyle}" 
                                           IsChecked="{Binding IsFlowInjectionMode, Mode=TwoWay}" 
                                           Click="ToggleButton_Click"
-                                          ToolTip="切换：连续进样 / 流动注射">
+                                          ToolTip="切换：连续进样 / 小样">
                                 <materialDesign:PackIcon Kind="ArrowLeft" RenderTransformOrigin=".5,.5" />
                                 <materialDesign:ToggleButtonAssist.OnContent>
                                     <materialDesign:PackIcon Kind="ArrowRight" />
@@ -162,7 +162,7 @@
 
                             <!-- 流动注射文字 -->
                             <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" FontSize="14" FontWeight="Bold" TextAlignment="Center">
-                                <Run Text="流"/><LineBreak/><Run Text="动"/>
+                                <Run Text="小"/><LineBreak/><Run Text="样"/>
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground" Value="{DynamicResource PurpleThemeBrush}"/>
