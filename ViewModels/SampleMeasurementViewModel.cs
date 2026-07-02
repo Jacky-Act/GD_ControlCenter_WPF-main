@@ -411,6 +411,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                     foreach(var device in SpectrometerManager.Instance.Devices)
                     {
                         await device.UpdateConfigurationAsync(intTime, (uint)avgCount);
+                        CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new GD_ControlCenter_WPF.Models.Messages.HardwareConfigChangedMessage(device.Config.SerialNumber, intTime, (uint)avgCount));
                     }
 
                     // 切换参数后等待硬件稳定: 3 * (积分时间 * 平均次数)
@@ -453,7 +454,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                                 var targetRow = CurrentSample.ElementConcentrations.FirstOrDefault(e => e.ElementName == matchName || e.ElementName == conf.ElementName);
                                 if (targetRow != null && r < targetRow.Reps.Count)
                                 {
-                                    targetRow.Reps[r].Intensity = Math.Round(realIntensity, 2);
+                                    targetRow.Reps[r].Intensity = Math.Round(realIntensity, 0);
                                 }
                             }
                         }
@@ -480,12 +481,12 @@ namespace GD_ControlCenter_WPF.ViewModels
                         double stdDev = Math.Sqrt(sumOfSquares / (validIntensities.Count - 1));
                         double rsd = (avg != 0) ? (stdDev / avg) * 100.0 : 0;
 
-                        row.MeasuredIntensity = Math.Round(avg, 2);
+                        row.MeasuredIntensity = Math.Round(avg, 0);
                         row.MeasuredRsd = Math.Round(rsd, 2);
                     }
                     else if (validIntensities.Count == 1)
                     {
-                        row.MeasuredIntensity = Math.Round(validIntensities[0], 2);
+                        row.MeasuredIntensity = Math.Round(validIntensities[0], 0);
                         row.MeasuredRsd = 0;
                     }
                 }

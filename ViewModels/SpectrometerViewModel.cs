@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
@@ -111,10 +111,24 @@ namespace GD_ControlCenter_WPF.ViewModels
             // 注册弱引用消息订阅：监听底层硬件产生的光谱数据包
             WeakReferenceMessenger.Default.Register<SpectralDataMessage>(this, (r, m) =>
             {
-                // 核心路由逻辑：仅处理来源序列号与本设备一致的消息
-                if (m.Value.SourceDeviceSerial == this.SerialNumber)
+                // 核心路由逻辑：如果当前未绑定特定序列号，或者序列号匹配，或者处于联机模式，均接受数据绘制
+                if (string.IsNullOrEmpty(this.SerialNumber) || m.Value.SourceDeviceSerial == this.SerialNumber || this.SerialNumber == "联机模式")
                 {
                     RequestPlotUpdate?.Invoke(m.Value);
+                }
+            });
+
+            // 监听自动化序列等外部组件修改硬件参数的同步消息
+            WeakReferenceMessenger.Default.Register<HardwareConfigChangedMessage>(this, (r, m) =>
+            {
+                // 如果当前未绑定特定序列号，或者序列号匹配，或者处于联机模式，均接受更新
+                if (string.IsNullOrEmpty(this.SerialNumber) || m.SerialNumber == this.SerialNumber || this.SerialNumber == "联机模式")
+                {
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        IntegrationTimeMs = m.IntegrationTimeMs;
+                        AveragingCount = m.AveragingCount;
+                    });
                 }
             });
         }

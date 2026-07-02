@@ -53,6 +53,25 @@ namespace GD_ControlCenter_WPF.Models.Messages
         public SpectrometerStatusMessage(SpectrometerConfig value) : base(value) { }
     }
 
+    /// <summary>
+    /// 硬件参数被外部控制模块（如自动化采集序列）修改时的同步消息。
+    /// 发送方：SampleMeasurementViewModel 等。
+    /// 订阅方：SpectrometerViewModel 等。
+    /// </summary>
+    public class HardwareConfigChangedMessage
+    {
+        public string SerialNumber { get; }
+        public float IntegrationTimeMs { get; }
+        public uint AveragingCount { get; }
+
+        public HardwareConfigChangedMessage(string serial, float integrationTimeMs, uint averagingCount)
+        {
+            SerialNumber = serial;
+            IntegrationTimeMs = integrationTimeMs;
+            AveragingCount = averagingCount;
+        }
+    }
+
     #endregion
 
     #region 3. [视图控制流] 消息 (View Control Flow)

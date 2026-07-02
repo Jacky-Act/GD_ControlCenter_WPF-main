@@ -1,4 +1,4 @@
-﻿using GD_ControlCenter_WPF.Models.Spectrometer;
+using GD_ControlCenter_WPF.Models.Spectrometer;
 
 /*
  * 文件名: SpectrometerLogic.cs

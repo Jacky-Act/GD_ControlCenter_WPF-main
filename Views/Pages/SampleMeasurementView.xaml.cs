@@ -21,12 +21,33 @@ namespace GD_ControlCenter_WPF.Views.Pages
 
             WeakReferenceMessenger.Default.Register<SpectralDataMessage>(this, (r, m) => RenderPlots(m.Value));
 
+            this.DataContextChanged += (s, e) =>
+            {
+                if (e.OldValue is SampleMeasurementViewModel oldVm)
+                {
+                    oldVm.PropertyChanged -= Vm_PropertyChanged;
+                }
+                if (e.NewValue is SampleMeasurementViewModel newVm)
+                {
+                    newVm.PropertyChanged += Vm_PropertyChanged;
+                }
+            };
+
             // 监听鼠标移动，实现精准波长捕捉
             SpecPlot.MouseMove += (s, e) =>
             {
                 var pos = e.GetPosition(SpecPlot);
                 _lastMouseX = SpecPlot.Plot.GetCoordinates((float)pos.X, (float)pos.Y).X;
             };
+        }
+
+        private void Vm_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(SampleMeasurementViewModel.SelectedPreviewElement))
+            {
+                // Trigger a render when the combobox selection changes
+                RenderPlots(new SpectralData { Wavelengths = Array.Empty<double>(), Intensities = Array.Empty<double>() });
+            }
         }
 
         private void SetupPlots()
@@ -83,17 +104,47 @@ namespace GD_ControlCenter_WPF.Views.Pages
                 SpecPlot.Plot.Axes.AutoScale();
                 SpecPlot.Refresh();
 
-                // 3. 渲染局部细节图
+                // 3. 渲染趋势图 (绑定到 SelectedPreviewElement 的测量记录)
                 TrendPlot.Plot.Clear();
-                var elementLine = TrendPlot.Plot.Add.Scatter(data.Wavelengths, data.Intensities);
-                elementLine.MarkerSize = 0;
-                elementLine.Color = ScottPlot.Colors.DeepSkyBlue;
-
-                double targetWl = vm.GetTargetWavelength();
-                if (targetWl > 0)
+                
+                if (vm.SelectedPreviewElement != null && vm.SelectedPreviewElement.Reps != null)
                 {
-                    TrendPlot.Plot.Axes.SetLimits(targetWl - 2.5, targetWl + 2.5, -100, data.Intensities.Max() + 500);
+                    var validReps = vm.SelectedPreviewElement.Reps.Where(r => r.Intensity.HasValue).ToList();
+                    if (validReps.Count > 0)
+                    {
+                        double[] xs = validReps.Select(r => (double)r.RepIndex).ToArray();
+                        double[] ys = validReps.Select(r => r.Intensity!.Value).ToArray();
+
+                        var scatter = TrendPlot.Plot.Add.Scatter(xs, ys);
+                        scatter.MarkerSize = 7;
+                        
+                        // 强制 X 轴只显示整数刻度
+                        int repeats = vm.CurrentSample.Repeats;
+                        double[] tickPositions = Enumerable.Range(1, repeats).Select(i => (double)i).ToArray();
+                        string[] tickLabels = Enumerable.Range(1, repeats).Select(i => i.ToString()).ToArray();
+                        TrendPlot.Plot.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericManual(tickPositions, tickLabels);
+                        scatter.LineWidth = 2;
+                        scatter.Color = ScottPlot.Colors.C0; // 统一使用全谱图的默认蓝色
+                        scatter.MarkerShape = ScottPlot.MarkerShape.FilledCircle;
+
+                        TrendPlot.Plot.Axes.SetLimitsX(0.5, vm.CurrentSample.Repeats + 0.5);
+                        
+                        // Y轴自适应，留出一点裕量
+                        double yMin = ys.Min();
+                        double yMax = ys.Max();
+                        double padding = (yMax - yMin) * 0.2;
+                        if (padding == 0) padding = ys[0] * 0.1; // 如果所有点一样高
+                        if (padding == 0) padding = 10;
+                        
+                        TrendPlot.Plot.Axes.SetLimitsY(yMin - padding, yMax + padding);
+                    }
+                    else
+                    {
+                        TrendPlot.Plot.Axes.SetLimitsX(0.5, vm.CurrentSample.Repeats + 0.5);
+                        TrendPlot.Plot.Axes.SetLimitsY(0, 100);
+                    }
                 }
+                
                 TrendPlot.Refresh();
             });
         }
