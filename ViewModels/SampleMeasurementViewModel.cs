@@ -512,6 +512,11 @@ namespace GD_ControlCenter_WPF.ViewModels
                 // 本地 JSON 序列保存
                 _configService.SaveResults(MeasurementSequence.ToList());
 
+                // 通知全系统数据已更新（这会让“数据处理”页面刷新拿到强度数据）
+                CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(
+                    new GD_ControlCenter_WPF.Models.Messages.MeasurementDataUpdatedMessage(MeasurementSequence.ToList())
+                );
+
                 // 自动跳向下一个样品，并终止本轮自动循环采集
                 int currentIndex = MeasurementSequence.IndexOf(CurrentSample);
                 if (currentIndex < MeasurementSequence.Count - 1)

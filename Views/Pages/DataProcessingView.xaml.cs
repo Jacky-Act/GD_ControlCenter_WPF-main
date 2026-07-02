@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using GD_ControlCenter_WPF.ViewModels;
 using System.Windows.Controls;
@@ -35,15 +35,19 @@ namespace GD_ControlCenter_WPF.Views.Pages
             sp.Color = ScottPlot.Colors.Orange;
 
             // 2. 画拟合线
+            double minX = 0;
+            double maxX = 100;
+
             if (xs.Length > 0)
             {
-                double minX = xs.Min();
-                double maxX = xs.Max() * 1.1;
-                // 根据 y = kx + b 计算起始和终止点
-                var line = CalibrationPlot.Plot.Add.Line(minX, k * minX + b, maxX, k * maxX + b);
-                line.Color = ScottPlot.Colors.Cyan;
-                line.LineWidth = 2;
+                minX = xs.Min();
+                maxX = xs.Max() * 1.1;
+                if (Math.Abs(maxX - minX) < 1e-5) maxX = minX + 10; 
             }
+            // 根据 y = kx + b 计算起始和终止点
+            var line = CalibrationPlot.Plot.Add.Line(minX, k * minX + b, maxX, k * maxX + b);
+            line.Color = ScottPlot.Colors.Cyan;
+            line.LineWidth = 2;
 
             CalibrationPlot.Plot.Axes.AutoScale();
             CalibrationPlot.Refresh();

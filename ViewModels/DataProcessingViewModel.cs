@@ -45,7 +45,9 @@ namespace GD_ControlCenter_WPF.ViewModels
     public partial class DataProcessingViewModel : ObservableObject
     {
         private readonly JsonConfigService _configService;
+        private readonly ElementDatabaseService _elementDbService;
         private List<SampleItemModel> _rawFullSequence = new(); // 实验数据快照缓冲区
+        private List<AnalysisConfigItem> _activeConfigs = new();
 
         // 绘图回调，由 DataProcessingView.xaml.cs 订阅
         public Action<double, double, List<StandardPointRow>>? RequestPlotUpdate { get; set; }
@@ -77,7 +79,12 @@ namespace GD_ControlCenter_WPF.ViewModels
         [ObservableProperty] private string _equationText = "未执行拟合";
         [ObservableProperty] private string _rSquaredText = "0.0000";
         [ObservableProperty] private double _lodValue; // 检出限 (3*SD_blank/slope)
-        [ObservableProperty] private double _becValue; // 背景等效浓度 (intercept/slope)
+
+        // 是否可以使用保存曲线功能 (历史曲线模式下不可用)
+        [ObservableProperty] private bool _canSaveCurve = true;
+
+        // 当前是否包含待测样品 (用于控制右下角表格遮罩)
+        [ObservableProperty] private bool _hasUnknownSamples = false;
 
         #endregion
 
@@ -91,26 +98,36 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         #endregion
 
-        public DataProcessingViewModel(JsonConfigService configService)
+        public DataProcessingViewModel(JsonConfigService configService, ElementDatabaseService elementDbService)
         {
             _configService = configService;
+            _elementDbService = elementDbService;
 
             // 监听：从配置页同步元素名单
             WeakReferenceMessenger.Default.Register<ActiveConfigsChangedMessage>(this, (r, m) => {
                 Application.Current.Dispatcher.Invoke(() => {
+                    _activeConfigs = m.Value;
                     ActiveElements.Clear();
-                    foreach (var c in m.Value)
+                    foreach (var c in _activeConfigs)
                     {
                         string name = c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})";
                         ActiveElements.Add(name);
                     }
                     if (ActiveElements.Count > 0 && string.IsNullOrEmpty(SelectedElement))
                         SelectedElement = ActiveElements[0];
+                    else
+                        UpdateFilteredData();
                 });
             });
 
             // 监听：接收来自测量模块或导入的实验全量数据包
             WeakReferenceMessenger.Default.Register<SampleSequenceChangedMessage>(this, (r, m) => {
+                _rawFullSequence = m.Value;
+                UpdateFilteredData();
+            });
+
+            // 监听：测样完成后强度数据的更新通知
+            WeakReferenceMessenger.Default.Register<MeasurementDataUpdatedMessage>(this, (r, m) => {
                 _rawFullSequence = m.Value;
                 UpdateFilteredData();
             });
@@ -124,7 +141,20 @@ namespace GD_ControlCenter_WPF.ViewModels
         private void UpdateFilteredData()
         {
             // 安全检查
-            if (string.IsNullOrEmpty(SelectedElement) || _rawFullSequence == null || _rawFullSequence.Count == 0) return;
+            if (string.IsNullOrEmpty(SelectedElement)) return;
+
+            // 无论是否有数据，都要更新“当前元素是否属于历史曲线”的状态（决定遮罩是否显示）
+            var config = _activeConfigs.FirstOrDefault(c => (c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})") == SelectedElement);
+            if (config != null)
+            {
+                CanSaveCurve = config.FittingCurve == "测量校准曲线";
+            }
+
+            if (_rawFullSequence == null || _rawFullSequence.Count == 0)
+            {
+                HasUnknownSamples = false;
+                return;
+            }
 
             Application.Current.Dispatcher.Invoke(() =>
             {
@@ -168,61 +198,92 @@ namespace GD_ControlCenter_WPF.ViewModels
                     }
                 }
 
+                HasUnknownSamples = FilteredResults.Any();
+
                 // 填充完数据后，手动触发一次拟合逻辑以刷新指标和图表
                 CalculateFitting();
             });
         }
 
         /// <summary>
-        /// 执行线性拟合命令：计算回归方程、LOD、BEC 并通知 View 绘图
+        /// 执行线性拟合命令：计算回归方程、LOD 并通知 View 绘图
+        /// 如果选择了历史曲线，则直接套用历史曲线不拟合。
         /// </summary>
         [RelayCommand]
         public void CalculateFitting()
         {
-            // 1. 提取所有被勾选为“启用”的标准点（包含空白点）
-            var validPoints = StandardPoints.Where(p => p.IsEnabled).ToList();
-            if (validPoints.Count < 2)
+            var config = _activeConfigs.FirstOrDefault(c => (c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})") == SelectedElement);
+            
+            double slope = 0;
+            double intercept = 0;
+            double r2 = 0;
+
+            if (config != null && config.FittingCurve != "测量校准曲线")
             {
-                EquationText = "拟合点不足";
-                RSquaredText = "0.0000";
-                return;
+                // 使用历史曲线
+                CanSaveCurve = false;
+                
+                var db = _elementDbService.Load();
+                var elementConfig = db.Elements.GetValueOrDefault(config.ElementName);
+                var savedCurve = elementConfig?.SavedCurves?.FirstOrDefault(c => c.Name == config.FittingCurve);
+                
+                if (savedCurve != null)
+                {
+                    slope = savedCurve.Slope;
+                    intercept = savedCurve.Intercept;
+                    r2 = savedCurve.RSquared;
+                    EquationText = savedCurve.Equation;
+                    RSquaredText = r2.ToString("F4");
+                    LodValue = savedCurve.Lod;
+                }
+                else
+                {
+                    EquationText = "未找到指定的历史曲线";
+                    RSquaredText = "0.0000";
+                    return;
+                }
             }
+            else
+            {
+                // 使用当前标准点拟合
+                CanSaveCurve = true;
 
-            // --- 2. 最小二乘法计算逻辑 ---
-            int n = validPoints.Count;
-            double sumX = validPoints.Sum(p => p.Concentration);
-            double sumY = validPoints.Sum(p => p.Intensity);
-            double sumXY = validPoints.Sum(p => p.Concentration * p.Intensity);
-            double sumX2 = validPoints.Sum(p => p.Concentration * p.Concentration);
+                // 1. 提取所有被勾选为“启用”的标准点（包含空白点）
+                var validPoints = StandardPoints.Where(p => p.IsEnabled).ToList();
+                if (validPoints.Count < 2)
+                {
+                    EquationText = "拟合点不足";
+                    RSquaredText = "0.0000";
+                    return;
+                }
 
-            double denominator = (n * sumX2 - sumX * sumX);
-            if (Math.Abs(denominator) < 1e-10) return;
+                // --- 2. 最小二乘法计算逻辑 ---
+                int n = validPoints.Count;
+                double sumX = validPoints.Sum(p => p.Concentration);
+                double sumY = validPoints.Sum(p => p.Intensity);
+                double sumXY = validPoints.Sum(p => p.Concentration * p.Intensity);
+                double sumX2 = validPoints.Sum(p => p.Concentration * p.Concentration);
 
-            double slope = (n * sumXY - sumX * sumY) / denominator;
-            double intercept = (sumY - slope * sumX) / n;
+                double denominator = (n * sumX2 - sumX * sumX);
+                if (Math.Abs(denominator) < 1e-10) return;
 
-            // 计算相关系数 R²
-            double yAvg = sumY / n;
-            double ssRes = validPoints.Sum(p => Math.Pow(p.Intensity - (slope * p.Concentration + intercept), 2));
-            double ssTot = validPoints.Sum(p => Math.Pow(p.Intensity - yAvg, 2));
-            double r2 = (ssTot == 0) ? 1 : 1 - (ssRes / ssTot);
+                slope = (n * sumXY - sumX * sumY) / denominator;
+                intercept = (sumY - slope * sumX) / n;
 
-            // --- 3. 计算分析性能指标 (LOD / BEC) ---
+                // 计算相关系数 R²
+                double yAvg = sumY / n;
+                double ssRes = validPoints.Sum(p => Math.Pow(p.Intensity - (slope * p.Concentration + intercept), 2));
+                double ssTot = validPoints.Sum(p => Math.Pow(p.Intensity - yAvg, 2));
+                r2 = (ssTot == 0) ? 1 : 1 - (ssRes / ssTot);
 
-            // 【核心公式】：LOD = 3 * SD(空白) / Slope
-            // 找到勾选点里的第一个空白样品。如果没有，则取第一个有效点估算。
-            var blank = validPoints.FirstOrDefault(p => p.Type == SampleType.空白) ?? validPoints[0];
-            // 标准偏差 = 强度 * (RSD / 100)
-            double blankSD = blank.Intensity * (blank.RSD / 100.0);
+                // --- 3. 计算分析性能指标 (LOD) ---
+                var blank = validPoints.FirstOrDefault(p => p.Type == SampleType.空白) ?? validPoints[0];
+                double blankSD = blank.Intensity * (blank.RSD / 100.0);
+                LodValue = (slope != 0) ? (3.0 * blankSD) / slope : 0;
 
-            // 计算 LOD
-            LodValue = (slope != 0) ? (3.0 * blankSD) / slope : 0;
-            // 计算 BEC = 截距 / 斜率
-            BecValue = (slope != 0) ? Math.Abs(intercept / slope) : 0;
-
-            // 更新 UI 指标
-            EquationText = $"y = {slope:F4}x + ({intercept:F4})";
-            RSquaredText = r2.ToString("F4");
+                EquationText = $"y = {slope:F4}x + ({intercept:F4})";
+                RSquaredText = r2.ToString("F4");
+            }
 
             // --- 4. 浓度回算：更新左侧所有待测溶液的浓度结果 ---
             foreach (var row in FilteredResults)
@@ -235,41 +296,62 @@ namespace GD_ControlCenter_WPF.ViewModels
             }
 
             // --- 5. 发送重绘信号给 View 层进行 ScottPlot 渲染 ---
-            RequestPlotUpdate?.Invoke(slope, intercept, validPoints);
+            RequestPlotUpdate?.Invoke(slope, intercept, StandardPoints.Where(p => p.IsEnabled).ToList());
+        }
+
+        [RelayCommand]
+        private void SaveCurrentCurve()
+        {
+            if (!CanSaveCurve || EquationText.Contains("拟合点不足") || EquationText.Contains("未执行拟合")) return;
+
+            var config = _activeConfigs.FirstOrDefault(c => (c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})") == SelectedElement);
+            if (config == null) return;
+
+            // 简单弹窗请求曲线名 (在真实WPF里可以用专门的输入框，这里直接用自动生成名字)
+            string curveName = $"曲线_{DateTime.Now:yyyyMMdd_HHmmss}";
+            
+            var db = _elementDbService.Load();
+            if (!db.Elements.ContainsKey(config.ElementName))
+                db.Elements[config.ElementName] = new ElementConfig();
+            
+            var elementConfig = db.Elements[config.ElementName];
+            if (elementConfig.SavedCurves == null) elementConfig.SavedCurves = new();
+
+            // 解析当前斜率和截距
+            double slope = 0, intercept = 0, r2 = 0;
+            var parts = EquationText.Replace("y = ", "").Replace("(", "").Replace(")", "").Split(new[] { "x + " }, StringSplitOptions.None);
+            if (parts.Length == 2)
+            {
+                double.TryParse(parts[0], out slope);
+                double.TryParse(parts[1], out intercept);
+            }
+            double.TryParse(RSquaredText, out r2);
+
+            elementConfig.SavedCurves.Add(new CalibrationCurveModel
+            {
+                Name = curveName,
+                Slope = slope,
+                Intercept = intercept,
+                RSquared = r2,
+                Equation = EquationText,
+                Lod = LodValue
+            });
+
+            // 存入旧列表，供ComboBox下拉选择兼容
+            if (!elementConfig.FittingCurves.Contains(curveName))
+            {
+                elementConfig.FittingCurves.Add(curveName);
+            }
+
+            _elementDbService.Save(db);
+            MessageBox.Show($"曲线已成功保存为 [{curveName}]，下次配置元素时即可选择！", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         #endregion
 
         #region 6. 数据交换命令
 
-        [RelayCommand]
-        private void ImportExternalData()
-        {
-            OpenFileDialog dialog = new OpenFileDialog { Filter = "实验快照 (*.json)|*.json", Title = "载入已完成的测量数据" };
-            if (dialog.ShowDialog() == true)
-            {
-                try
-                {
-                    var data = _configService.ImportResults(dialog.FileName);
-                    if (data != null)
-                    {
-                        _rawFullSequence = data;
-                        ActiveElements.Clear();
-                        // 从导入的文件中自动提取元素名单
-                        var els = data.SelectMany(s => s.ElementConcentrations).Select(e => e.ElementName).Distinct().ToList();
-                        foreach (var el in els) ActiveElements.Add(el);
 
-                        if (ActiveElements.Count > 0) SelectedElement = ActiveElements[0];
-                        UpdateFilteredData(); // 立即触发清洗与拟合展示
-                        MessageBox.Show("外部实验快照载入成功。");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"导入失败：{ex.Message}");
-                }
-            }
-        }
 
         [RelayCommand] private void ExportData() => MessageBox.Show("功能开发中：导出结果报表...");
         [RelayCommand] private void GenerateReport() => MessageBox.Show("功能开发中：生成分析报告...");

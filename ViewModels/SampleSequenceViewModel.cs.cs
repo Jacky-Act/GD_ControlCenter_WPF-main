@@ -267,10 +267,10 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// </summary>
         private void UpdateActiveElements(List<AnalysisConfigItem> configs)
         {
-            // 更新限制状态：如果存在配置，且任一配置的曲线并非"测量校准曲线"
             if (configs.Count > 0)
             {
-                IsRestrictedToUnknownOnly = configs.Any(c => c.FittingCurve != "测量校准曲线");
+                // 只有当【所有】元素都使用了历史曲线时，才限制只能测“待测液”
+                IsRestrictedToUnknownOnly = configs.All(c => c.FittingCurve != "测量校准曲线");
             }
             else
             {

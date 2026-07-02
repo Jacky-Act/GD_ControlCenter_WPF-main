@@ -90,6 +90,11 @@ namespace GD_ControlCenter_WPF.Models.Messages
         public SampleSequenceChangedMessage(List<SampleItemModel> value) : base(value) { }
     }
 
+    public class MeasurementDataUpdatedMessage : ValueChangedMessage<List<SampleItemModel>>
+    {
+        public MeasurementDataUpdatedMessage(List<SampleItemModel> value) : base(value) { }
+    }
+
     public class SampleTypeChangedMessage : ValueChangedMessage<SampleItemModel>
     {
         public SampleTypeChangedMessage(SampleItemModel value) : base(value) { }
