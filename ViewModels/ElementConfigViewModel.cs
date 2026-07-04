@@ -61,7 +61,48 @@ namespace GD_ControlCenter_WPF.ViewModels
         [ObservableProperty] private int _currentIntegrationTime = 200;
         [ObservableProperty] private int _currentAveragingCount = 1;
         [ObservableProperty] private ObservableCollection<string> _currentFittingCurves = new();
-        [ObservableProperty] private string _selectedFittingCurve = "测量校准曲线";
+        
+        private string _selectedFittingCurve = "测量校准曲线";
+        public string SelectedFittingCurve
+        {
+            get => _selectedFittingCurve;
+            set
+            {
+                if (_selectedFittingCurve == value) return;
+                
+                if (!_isLoadingElement)
+                {
+                    bool hasSequence = false;
+                    try { hasSequence = WeakReferenceMessenger.Default.Send<SequenceStatusRequestMessage>().Response; } catch { }
+
+                    if (hasSequence)
+                    {
+                        var res = MessageBox.Show("当前已有待测样品序列或测量数据，更改拟合曲线将会导致后续计算逻辑变更，甚至可能需要清空当前序列重新应用！\n\n您确定要更改曲线吗？", "警告", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                        if (res != MessageBoxResult.Yes) 
+                        {
+                            OnPropertyChanged(nameof(SelectedFittingCurve));
+                            return;
+                        }
+                        
+                        // 用户确认更改，触发全局序列清空
+                        WeakReferenceMessenger.Default.Send(new ClearSequenceRequestMessage());
+                    }
+                }
+
+                SetProperty(ref _selectedFittingCurve, value);
+                
+                if (!_isLoadingElement)
+                {
+                    var currentSelected = SelectedConfigs.FirstOrDefault(c => c.ElementName == SelectedElementSymbol);
+                    if (currentSelected != null)
+                    {
+                        currentSelected.FittingCurve = value;
+                        WeakReferenceMessenger.Default.Send(new ActiveConfigsChangedMessage(SelectedConfigs.ToList()));
+                    }
+                    SaveCurrentElementToDb();
+                }
+            }
+        }
 
         // 编辑状态
         [ObservableProperty] private bool _isWavelengthEditing;
@@ -104,6 +145,18 @@ namespace GD_ControlCenter_WPF.ViewModels
                 }
                 WeakReferenceMessenger.Default.Send(new ActiveConfigsChangedMessage(SelectedConfigs.ToList()));
             });
+
+            // 监听：保存了新的曲线后，如果当前恰好处于该元素页面，则刷新它
+            WeakReferenceMessenger.Default.Register<CurveSavedMessage>(this, (r, m) =>
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (SelectedElementSymbol == m.Value)
+                    {
+                        LoadElementConfig(SelectedElementSymbol);
+                    }
+                });
+            });
         }
 
         #region 2. 业务命令 (Commands)
@@ -132,35 +185,45 @@ namespace GD_ControlCenter_WPF.ViewModels
             LoadElementConfig(symbol);
         }
 
+        private bool _isLoadingElement = false;
+
         private void LoadElementConfig(string symbol)
         {
-            var db = _elementDbService.Load();
-            if (db.Elements.TryGetValue(symbol, out var config))
+            _isLoadingElement = true;
+            try
             {
-                CurrentWavelengths.Clear();
-                foreach (var w in config.Wavelengths)
+                var db = _elementDbService.Load();
+                if (db.Elements.TryGetValue(symbol, out var config))
                 {
-                    CurrentWavelengths.Add(new WavelengthWrapper(w.Wavelength));
+                    CurrentWavelengths.Clear();
+                    foreach (var w in config.Wavelengths)
+                    {
+                        CurrentWavelengths.Add(new WavelengthWrapper(w.Wavelength));
+                    }
+                    CurrentIntegrationTime = config.IntegrationTime;
+                    CurrentAveragingCount = config.AveragingCount;
+                    
+                    CurrentFittingCurves.Clear();
+                    foreach (var curve in config.FittingCurves)
+                    {
+                        CurrentFittingCurves.Add(curve);
+                    }
+                    if (CurrentFittingCurves.Count > 0) SelectedFittingCurve = CurrentFittingCurves[0];
                 }
-                CurrentIntegrationTime = config.IntegrationTime;
-                CurrentAveragingCount = config.AveragingCount;
-                
-                CurrentFittingCurves.Clear();
-                foreach (var curve in config.FittingCurves)
+                else
                 {
-                    CurrentFittingCurves.Add(curve);
+                    // 如果库里没有，给个默认空状态
+                    CurrentWavelengths.Clear();
+                    CurrentIntegrationTime = 200;
+                    CurrentAveragingCount = 1;
+                    CurrentFittingCurves.Clear();
+                    CurrentFittingCurves.Add("测量校准曲线");
+                    SelectedFittingCurve = "测量校准曲线";
                 }
-                if (CurrentFittingCurves.Count > 0) SelectedFittingCurve = CurrentFittingCurves[0];
             }
-            else
+            finally
             {
-                // 如果库里没有，给个默认空状态
-                CurrentWavelengths.Clear();
-                CurrentIntegrationTime = 200;
-                CurrentAveragingCount = 1;
-                CurrentFittingCurves.Clear();
-                CurrentFittingCurves.Add("测量校准曲线");
-                SelectedFittingCurve = "测量校准曲线";
+                _isLoadingElement = false;
             }
         }
 
@@ -286,14 +349,24 @@ namespace GD_ControlCenter_WPF.ViewModels
                 return;
             }
 
-            var res = MessageBox.Show($"确定要删除拟合曲线【{curveName}】吗？", "删除确认", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            var res = MessageBox.Show($"确定要删除拟合曲线\n【{curveName}】吗？", "删除确认", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (res == MessageBoxResult.Yes)
             {
                 CurrentFittingCurves.Remove(curveName);
                 if (SelectedFittingCurve == curveName && CurrentFittingCurves.Count > 0)
                 {
+                    _isLoadingElement = true;
                     SelectedFittingCurve = CurrentFittingCurves[0];
+                    _isLoadingElement = false;
                 }
+                
+                var db = _elementDbService.Load();
+                if (db.Elements.TryGetValue(SelectedElementSymbol, out var config))
+                {
+                    config.SavedCurves.RemoveAll(c => c.Name == curveName);
+                    _elementDbService.Save(db);
+                }
+                
                 SaveCurrentElementToDb(); // 立即保存
             }
         }
@@ -302,13 +375,14 @@ namespace GD_ControlCenter_WPF.ViewModels
         {
             var db = _elementDbService.Load();
             
-            var config = new ElementConfig
-            {
-                IntegrationTime = CurrentIntegrationTime,
-                AveragingCount = CurrentAveragingCount,
-                FittingCurves = CurrentFittingCurves.ToList(),
-                Wavelengths = CurrentWavelengths.Select(w => new WavelengthConfig { Wavelength = w.Value }).ToList()
-            };
+            if (!db.Elements.ContainsKey(SelectedElementSymbol))
+                db.Elements[SelectedElementSymbol] = new ElementConfig();
+            
+            var config = db.Elements[SelectedElementSymbol];
+            config.IntegrationTime = CurrentIntegrationTime;
+            config.AveragingCount = CurrentAveragingCount;
+            config.FittingCurves = CurrentFittingCurves.ToList();
+            config.Wavelengths = CurrentWavelengths.Select(w => new WavelengthConfig { Wavelength = w.Value }).ToList();
             
             db.Elements[SelectedElementSymbol] = config;
             _elementDbService.Save(db);

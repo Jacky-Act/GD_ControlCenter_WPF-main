@@ -89,6 +89,9 @@ namespace GD_ControlCenter_WPF.ViewModels
         // 当前是否包含待测样品 (用于控制右下角表格遮罩)
         [ObservableProperty] private bool _hasUnknownSamples = false;
 
+        // 当前是否包含标准样品 (用于控制右上角表格遮罩)
+        [ObservableProperty] private bool _hasStandardSamples = false;
+
         #endregion
 
         #region 4. 数据表格集合
@@ -149,17 +152,10 @@ namespace GD_ControlCenter_WPF.ViewModels
             // 安全检查
             if (string.IsNullOrEmpty(SelectedElement)) return;
 
-            // 无论是否有数据，都要更新“当前元素是否属于历史曲线”的状态（决定遮罩是否显示）
             var config = _activeConfigs.FirstOrDefault(c => (c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})") == SelectedElement);
             if (config != null)
             {
                 CanSaveCurve = config.FittingCurve == "测量校准曲线";
-            }
-
-            if (_rawFullSequence == null || _rawFullSequence.Count == 0)
-            {
-                HasUnknownSamples = false;
-                return;
             }
 
             Application.Current.Dispatcher.Invoke(() =>
@@ -167,53 +163,83 @@ namespace GD_ControlCenter_WPF.ViewModels
                 FilteredResults.Clear();
                 StandardPoints.Clear();
 
-                foreach (var sample in _rawFullSequence)
+                if (_rawFullSequence != null)
                 {
-                    // 【核心修复】：使用 Trim 消除不可见空格干扰，精准匹配元素数据
-                    var target = sample.ElementConcentrations
-                        .FirstOrDefault(e => e.ElementName.Trim() == SelectedElement.Trim());
-
-                    if (target == null) continue;
-
-                    // 场景 1：待测溶液 -> 填入左下角测定表
-                    if (sample.Type == SampleType.待测液)
+                    foreach (var sample in _rawFullSequence)
                     {
-                        FilteredResults.Add(new ContinuousElementResultRow
+                        var target = sample.ElementConcentrations
+                            .FirstOrDefault(e => e.ElementName.Trim() == SelectedElement.Trim());
+
+                        if (target == null) continue;
+
+                        if (sample.Type == SampleType.待测液)
                         {
-                            SampleName = sample.SampleName,
-                            SampleType = "待测液",
-                            Status = sample.Status,
-                            Intensity = target.MeasuredIntensity,
-                            RSD = target.MeasuredRsd
-                        });
+                            FilteredResults.Add(new ContinuousElementResultRow
+                            {
+                                SampleName = sample.SampleName,
+                                SampleType = "待测液",
+                                Status = sample.Status,
+                                Intensity = target.MeasuredIntensity,
+                                RSD = target.MeasuredRsd
+                            });
+                        }
+                        else if (sample.Type == SampleType.标液 || sample.Type == SampleType.空白)
+                        {
+                            double conc = (sample.Type == SampleType.空白) ? 0 :
+                                         (double.TryParse(target.ConcentrationValue, out var d) ? d : 0);
+
+                            StandardPoints.Add(new StandardPointRow
+                            {
+                                Name = sample.SampleName,
+                                Type = sample.Type,
+                                Concentration = conc,
+                                Intensity = target.MeasuredIntensity,
+                                RSD = target.MeasuredRsd
+                            });
+                        }
                     }
-                    // 场景 2：空白 或 标液 -> 填入右侧拟合表
-                    else if (sample.Type == SampleType.标液 || sample.Type == SampleType.空白)
-                    {
-                        // 解析浓度：如果是空白点，浓度强制设为 0
-                        double conc = (sample.Type == SampleType.空白) ? 0 :
-                                     (double.TryParse(target.ConcentrationValue, out var d) ? d : 0);
+                }
 
-                        StandardPoints.Add(new StandardPointRow
+                // 【核心修复】：如果使用了历史曲线，强制从数据库加载其关联的校准点数据覆盖右侧列表
+                if (config != null && config.FittingCurve != "测量校准曲线")
+                {
+                    var db = _elementDbService.Load();
+                    var elementConfig = db.Elements.GetValueOrDefault(config.ElementName);
+                    var savedCurve = elementConfig?.SavedCurves?.FirstOrDefault(c => c.Name == config.FittingCurve);
+                    
+                    if (savedCurve != null && savedCurve.Points != null && savedCurve.Points.Count > 0)
+                    {
+                        StandardPoints.Clear();
+                        foreach (var p in savedCurve.Points)
                         {
-                            Name = sample.SampleName, // 确保这里拿到的是唯一的名称
-                            Type = sample.Type,
-                            Concentration = conc,
-                            Intensity = target.MeasuredIntensity,
-                            RSD = target.MeasuredRsd
-                        });
+                            StandardPoints.Add(new StandardPointRow
+                            {
+                                Name = p.Name,
+                                Type = p.Concentration == 0 ? SampleType.空白 : SampleType.标液,
+                                Concentration = p.Concentration,
+                                Intensity = p.Intensity,
+                                RSD = p.RSD
+                            });
+                        }
                     }
                 }
 
                 HasUnknownSamples = FilteredResults.Any();
+                HasStandardSamples = StandardPoints.Any(p => p.Type == SampleType.标液);
 
-                bool allStandardsCompleted = _rawFullSequence
-                    .Where(s => s.Type == SampleType.标液 || s.Type == SampleType.空白)
-                    .All(s => s.Status == "已完成");
-
-                if (allStandardsCompleted)
+                bool isUsingHistory = config != null && config.FittingCurve != "测量校准曲线";
+                bool allStandardsCompleted = true;
+                
+                if (!isUsingHistory && _rawFullSequence != null && _rawFullSequence.Any(s => s.Type == SampleType.标液 || s.Type == SampleType.空白))
                 {
-                    _ = CalculateFitting();
+                    allStandardsCompleted = _rawFullSequence
+                        .Where(s => s.Type == SampleType.标液 || s.Type == SampleType.空白)
+                        .All(s => s.Status == "已完成");
+                }
+
+                if (isUsingHistory || allStandardsCompleted)
+                {
+                    _ = CalculateFitting(false); // 不弹窗
                 }
                 else
                 {
@@ -221,7 +247,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                     RSquaredText = "0.0000";
                     LodValue = 0;
                     var plotPoints = StandardPoints.ToList();
-                    string unit = _rawFullSequence.FirstOrDefault()?.ConcentrationUnit ?? "ppm";
+                    string unit = _rawFullSequence?.FirstOrDefault()?.ConcentrationUnit ?? "ppm";
                     RequestPlotUpdate?.Invoke(0, 0, plotPoints, unit, false);
                 }
             });
@@ -234,22 +260,34 @@ namespace GD_ControlCenter_WPF.ViewModels
         [RelayCommand]
         public async System.Threading.Tasks.Task CalculateFitting()
         {
-            if (_rawFullSequence != null)
+            await CalculateFitting(true);
+        }
+
+        private async System.Threading.Tasks.Task CalculateFitting(bool showToast)
+        {
+            var config = _activeConfigs.FirstOrDefault(c => (c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})") == SelectedElement);
+
+            if (config == null || config.FittingCurve == "测量校准曲线")
             {
-                bool allStandardsCompleted = _rawFullSequence
-                    .Where(s => s.Type == SampleType.标液 || s.Type == SampleType.空白)
-                    .All(s => s.Status == "已完成");
-                
-                if (!allStandardsCompleted)
+                if (_rawFullSequence != null && _rawFullSequence.Any(s => s.Type == SampleType.标液 || s.Type == SampleType.空白))
                 {
-                    AlertMessage = "标准和空白序列尚未全部测量完成！";
-                    ShowAlert = true;
-                    await System.Threading.Tasks.Task.Delay(1000);
-                    ShowAlert = false;
-                    return;
+                    bool allStandardsCompleted = _rawFullSequence
+                        .Where(s => s.Type == SampleType.标液 || s.Type == SampleType.空白)
+                        .All(s => s.Status == "已完成");
+                    
+                    if (!allStandardsCompleted)
+                    {
+                        if (showToast)
+                        {
+                            AlertMessage = "标准和空白序列尚未全部测量完成！";
+                            ShowAlert = true;
+                            await System.Threading.Tasks.Task.Delay(1000);
+                            ShowAlert = false;
+                        }
+                        return;
+                    }
                 }
             }
-            var config = _activeConfigs.FirstOrDefault(c => (c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})") == SelectedElement);
             
             double slope = 0;
             double intercept = 0;
@@ -293,6 +331,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                 {
                     EquationText = "拟合点不足";
                     RSquaredText = "0.0000";
+                    LodValue = 0;
+                    RequestPlotUpdate?.Invoke(0, 0, StandardPoints.ToList(), _rawFullSequence?.FirstOrDefault()?.ConcentrationUnit ?? "ppm", false);
                     return;
                 }
 
@@ -353,8 +393,8 @@ namespace GD_ControlCenter_WPF.ViewModels
             var config = _activeConfigs.FirstOrDefault(c => (c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})") == SelectedElement);
             if (config == null) return;
 
-            // 简单弹窗请求曲线名 (在真实WPF里可以用专门的输入框，这里直接用自动生成名字)
-            string curveName = $"曲线_{DateTime.Now:yyyyMMdd_HHmmss}";
+            // 使用方程式本身作为曲线的名称
+            string curveName = EquationText;
             
             var db = _elementDbService.Load();
             if (!db.Elements.ContainsKey(config.ElementName))
@@ -373,6 +413,24 @@ namespace GD_ControlCenter_WPF.ViewModels
             }
             double.TryParse(RSquaredText, out r2);
 
+            var pts = StandardPoints.Where(p => !p.IsBlank).Select(p => new PointModel
+            {
+                Name = p.Name,
+                Concentration = p.Concentration,
+                Intensity = p.Intensity,
+                RSD = p.RSD
+            }).ToList();
+
+            // 如果有空白，把空白点也存进去，以便画图时有 (0, y)
+            var blanks = StandardPoints.Where(p => p.IsBlank).Select(p => new PointModel
+            {
+                Name = p.Name,
+                Concentration = 0,
+                Intensity = p.Intensity,
+                RSD = p.RSD
+            });
+            pts.InsertRange(0, blanks);
+
             elementConfig.SavedCurves.Add(new CalibrationCurveModel
             {
                 Name = curveName,
@@ -380,7 +438,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                 Intercept = intercept,
                 RSquared = r2,
                 Equation = EquationText,
-                Lod = LodValue
+                Lod = LodValue,
+                Points = pts
             });
 
             // 存入旧列表，供ComboBox下拉选择兼容
@@ -390,7 +449,12 @@ namespace GD_ControlCenter_WPF.ViewModels
             }
 
             _elementDbService.Save(db);
-            MessageBox.Show($"曲线已成功保存为 [{curveName}]，下次配置元素时即可选择！", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // 发送消息通知“元素配置”页面自动刷新该元素的下拉框
+            WeakReferenceMessenger.Default.Send(new CurveSavedMessage(config.ElementName));
+
+            string saveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            MessageBox.Show($"保存时间: {saveTime}\n\n曲线已成功保存为:\n[{curveName}]\n\n下次配置元素时即可直接选择该方程！", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         #endregion

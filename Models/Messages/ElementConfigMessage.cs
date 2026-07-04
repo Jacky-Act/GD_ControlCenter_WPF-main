@@ -69,4 +69,12 @@ namespace GD_ControlCenter_WPF.Models.Messages
     {
         public SyncTemplateElementsMessage(List<AnalysisConfigItem> value) : base(value) { }
     }
+
+    /// <summary>
+    /// 保存曲线后发出的消息，通知配置页面刷新下拉框。
+    /// </summary>
+    public class CurveSavedMessage : ValueChangedMessage<string>
+    {
+        public CurveSavedMessage(string value) : base(value) { }
+    }
 }

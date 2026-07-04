@@ -7,6 +7,14 @@ namespace GD_ControlCenter_WPF.Models
         public double Wavelength { get; set; }
     }
 
+    public class PointModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public double Concentration { get; set; }
+        public double Intensity { get; set; }
+        public double RSD { get; set; }
+    }
+
     public class CalibrationCurveModel
     {
         public string Name { get; set; } = string.Empty;
@@ -15,6 +23,7 @@ namespace GD_ControlCenter_WPF.Models
         public double RSquared { get; set; }
         public string Equation { get; set; } = string.Empty;
         public double Lod { get; set; }
+        public List<PointModel> Points { get; set; } = new();
     }
 
     public class ElementConfig

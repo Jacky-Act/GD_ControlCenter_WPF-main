@@ -151,6 +151,16 @@
                         </StackPanel>
                     </Border>
                     
+                    <!-- 遮罩层，没有标液时显示 -->
+                    <Border Background="#CCFFFFFF" Panel.ZIndex="6" 
+                            Visibility="{Binding HasStandardSamples, Converter={StaticResource InverseBoolToVisConverter}}">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <materialDesign:PackIcon Kind="ChartBoxOutline" Width="32" Height="32" HorizontalAlignment="Center" Opacity="0.6"/>
+                            <TextBlock Text="暂无校准点数据" FontSize="14" FontWeight="Bold" Margin="0,8,0,4" HorizontalAlignment="Center" Opacity="0.8"/>
+                            <TextBlock Text="请在序列中添加标准溶液后查看" FontSize="12" Opacity="0.6" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    
                     <Grid Margin="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>

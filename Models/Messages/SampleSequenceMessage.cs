@@ -115,4 +115,14 @@ namespace GD_ControlCenter_WPF.Models.Messages
     {
         public NavigateMessage(string value) : base(value) { }
     }
+
+    // 新增：请求查询当前是否已存在序列或数据的消息
+    public class SequenceStatusRequestMessage : RequestMessage<bool>
+    {
+    }
+
+    // 新增：请求全局清空所有序列和测量数据的消息
+    public class ClearSequenceRequestMessage
+    {
+    }
 }

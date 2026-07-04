@@ -205,6 +205,22 @@ namespace GD_ControlCenter_WPF.ViewModels
             });
 
             WeakReferenceMessenger.Default.Register<SampleTypeChangedMessage>(this, (r, m) => RenameSampleSmartly(m.Value));
+
+            WeakReferenceMessenger.Default.Register<SampleSequenceViewModel, SequenceStatusRequestMessage>(this, (r, m) =>
+            {
+                m.Reply(r.IsSequenceApplied || r.Samples.Count > 0);
+            });
+
+            WeakReferenceMessenger.Default.Register<SampleSequenceViewModel, ClearSequenceRequestMessage>(this, (r, m) =>
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    r.IsSequenceApplied = false;
+                    r.Samples.Clear();
+                    // 向下游（测量界面和数据处理界面）发送一个空序列，并带有强制覆盖标记，彻底清空遗留数据
+                    WeakReferenceMessenger.Default.Send(new SampleSequenceChangedMessage(new List<SampleItemModel>(), true));
+                });
+            });
         }
 
         // --- 核心逻辑方法 ---
@@ -507,14 +523,23 @@ namespace GD_ControlCenter_WPF.ViewModels
             }
             else
             {
-                // 生成空白
-                Samples.Add(CreateNewSample(SampleType.空白, "BLK-1"));
-                // 生成标准品序列
-                for (int i = 1; i <= BatchStandardCount; i++)
-                    Samples.Add(CreateNewSample(SampleType.标液, $"STD-{i}"));
-                // 生成待测样序列
-                for (int i = 1; i <= BatchUnknownCount; i++)
-                    Samples.Add(CreateNewSample(SampleType.待测液, $"待测液-{i}"));
+                if (BatchStandardCount == 0 && BatchUnknownCount != 0)
+                {
+                    // 生成待测样序列，无空白
+                    for (int i = 1; i <= BatchUnknownCount; i++)
+                        Samples.Add(CreateNewSample(SampleType.待测液, $"待测液-{i}"));
+                }
+                else
+                {
+                    // 生成空白
+                    Samples.Add(CreateNewSample(SampleType.空白, "BLK-1"));
+                    // 生成标准品序列
+                    for (int i = 1; i <= BatchStandardCount; i++)
+                        Samples.Add(CreateNewSample(SampleType.标液, $"STD-{i}"));
+                    // 生成待测样序列
+                    for (int i = 1; i <= BatchUnknownCount; i++)
+                        Samples.Add(CreateNewSample(SampleType.待测液, $"待测液-{i}"));
+                }
             }
 
             WeakReferenceMessenger.Default.Send(new RebuildColumnsMessage(_activeElements));

@@ -232,10 +232,10 @@
                                 <ComboBox x:Name="FittingCurveComboBox" ItemsSource="{Binding CurrentFittingCurves}" SelectedItem="{Binding SelectedFittingCurve}" Width="120" VerticalAlignment="Center" FontSize="15" DropDownOpened="FittingCurveComboBox_DropDownOpened">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding}" FontSize="15">
+                                            <TextBlock Text="{Binding}" FontSize="15" Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
                                                 <TextBlock.ContextMenu>
                                                     <ContextMenu>
-                                                        <MenuItem Header="删除" Command="{Binding DataContext.DeleteFittingCurveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Foreground="IndianRed">
+                                                        <MenuItem Header="删除" Command="{Binding PlacementTarget.Tag.DeleteFittingCurveCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Foreground="IndianRed">
                                                             <MenuItem.Icon>
                                                                 <materialDesign:PackIcon Kind="Delete" />
                                                             </MenuItem.Icon>

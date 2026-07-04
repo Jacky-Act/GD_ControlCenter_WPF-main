@@ -53,12 +53,13 @@ namespace GD_ControlCenter_WPF.Views.Pages
                 line.LineWidth = 2;
             }
 
-            // 设置坐标轴标签和字体
-            CalibrationPlot.Plot.Axes.Bottom.Label.Text = $"浓度 ({unit})";
-            CalibrationPlot.Plot.Axes.Left.Label.Text = "强度";
+            // 设置坐标轴标签和字体，使用英文以防止中文在部分系统中显示为方块
+            CalibrationPlot.Plot.Axes.Bottom.Label.Text = $"Concentration ({unit})";
+            CalibrationPlot.Plot.Axes.Left.Label.Text = "Intensity";
             
-            CalibrationPlot.Plot.Axes.Bottom.Label.FontName = "Microsoft YaHei";
-            CalibrationPlot.Plot.Axes.Left.Label.FontName = "Microsoft YaHei";
+            // 可以去掉中文字体的强制指定，使用默认字体
+            // CalibrationPlot.Plot.Axes.Bottom.Label.FontName = "Microsoft YaHei";
+            // CalibrationPlot.Plot.Axes.Left.Label.FontName = "Microsoft YaHei";
 
             // 设置网格颜色，让图表看起来更清爽
             CalibrationPlot.Plot.Grid.MajorLineColor = ScottPlot.Color.FromHex("#eeeeee");
