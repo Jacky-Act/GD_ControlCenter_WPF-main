@@ -18,6 +18,12 @@ namespace GD_ControlCenter_WPF.Views.Pages
                     vm.RequestPlotUpdate = (slope, intercept, points, unit, isValidFit) => {
                         UpdateChart(slope, intercept, points, unit, isValidFit);
                     };
+
+                    vm.CapturePlotImageAction = () => {
+                        string tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"plot_{Guid.NewGuid()}.png");
+                        CalibrationPlot.Plot.SavePng(tempPath, 600, 400);
+                        return tempPath;
+                    };
                 }
             };
         }

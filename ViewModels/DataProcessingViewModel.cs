@@ -10,9 +10,28 @@ using System.Linq;
 using System;
 using System.Windows;
 using Microsoft.Win32;
+using System.Threading.Tasks;
+using System.IO;
+using System.IO.Compression;
 
 namespace GD_ControlCenter_WPF.ViewModels
 {
+    public class ReportDataModel
+    {
+        public string ElementName { get; set; } = string.Empty;
+        public string CurveTime { get; set; } = string.Empty;
+        public string MeasurementDate { get; set; } = string.Empty;
+        public int Repeats { get; set; }
+        public double Interval { get; set; }
+        public string ConcentrationUnit { get; set; } = string.Empty;
+        
+        public string Equation { get; set; } = string.Empty;
+        public string RSquared { get; set; } = string.Empty;
+        public double Lod { get; set; }
+        
+        public List<StandardPointRow> StandardPoints { get; set; } = new();
+        public List<ContinuousElementResultRow> SampleResults { get; set; } = new();
+    }
     #region 1. 辅助展示数据模型 (必须标记为 partial 以支持通知)
 
     /// <summary> 测定结果行：仅用于展示“待测液”样品的计算结果 </summary>
@@ -54,6 +73,9 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         // 绘图回调，由 DataProcessingView.xaml.cs 订阅
         public Action<double, double, List<StandardPointRow>, string, bool>? RequestPlotUpdate { get; set; }
+        
+        // 获取图表截图回调
+        public Func<string>? CapturePlotImageAction { get; set; }
 
         #region 2. UI 界面属性
 
@@ -439,6 +461,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                 RSquared = r2,
                 Equation = EquationText,
                 Lod = LodValue,
+                SaveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 Points = pts
             });
 
@@ -464,7 +487,289 @@ namespace GD_ControlCenter_WPF.ViewModels
 
 
         [RelayCommand] private void ExportData() => MessageBox.Show("功能开发中：导出结果报表...");
-        [RelayCommand] private void GenerateReport() => MessageBox.Show("功能开发中：生成分析报告...");
+        
+        [RelayCommand]
+        private async Task GenerateReport()
+        {
+            if (_rawFullSequence == null || _rawFullSequence.Count == 0)
+            {
+                MessageBox.Show("当前没有可导出的测量数据！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // 要在全部测量完成后，才能保存这个
+            bool isAllCompleted = _rawFullSequence.All(s => s.Status == "已完成");
+            if (!isAllCompleted)
+            {
+                MessageBox.Show("测量尚未全部完成，请在全部测量完成后再导出报告！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var dialog = new SaveFileDialog
+            {
+                Filter = "PDF 报告文件 (*.pdf)|*.pdf",
+                FileName = $"分析报告_{DateTime.Now:yyyyMMdd_HHmm}.pdf"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                try
+                {
+                    List<ReportDataModel> allReports = new();
+                    List<string> allImages = new();
+                    
+                    // 记录原始选中的元素，最后恢复
+                    string originalSelection = SelectedElement;
+
+                    foreach (var configItem in _activeConfigs)
+                    {
+                        string elementName = configItem.ElementName.Contains("(") ? configItem.ElementName : $"{configItem.ElementName}({configItem.Wavelength})";
+                        
+                        // 强制切换当前选中元素，触发重新过滤数据和拟合
+                        SelectedElement = elementName;
+                        
+                        // 等待 300ms 使得后台拟合任务和 UI 绘图渲染完成
+                        await Task.Delay(300);
+
+                        string imagePath = string.Empty;
+                        if (CapturePlotImageAction != null)
+                        {
+                            imagePath = CapturePlotImageAction.Invoke();
+                        }
+                        
+                        string curveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        if (configItem.FittingCurve != "测量校准曲线")
+                        {
+                            var db = _elementDbService.Load();
+                            var elementConfig = db.Elements.GetValueOrDefault(configItem.ElementName);
+                            var savedCurve = elementConfig?.SavedCurves?.FirstOrDefault(c => c.Name == configItem.FittingCurve);
+                            if (savedCurve != null && !string.IsNullOrEmpty(savedCurve.SaveTime))
+                            {
+                                curveTime = savedCurve.SaveTime;
+                            }
+                        }
+
+                        var firstSample = _rawFullSequence.FirstOrDefault();
+
+                        var reportData = new ReportDataModel
+                        {
+                            ElementName = SelectedElement,
+                            CurveTime = curveTime,
+                            MeasurementDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                            Repeats = firstSample?.Repeats ?? 1,
+                            Interval = firstSample?.Interval ?? 0,
+                            ConcentrationUnit = firstSample?.ConcentrationUnit ?? "ppm",
+                            Equation = EquationText,
+                            RSquared = RSquaredText,
+                            Lod = LodValue,
+                            StandardPoints = StandardPoints.ToList(),
+                            SampleResults = FilteredResults.ToList()
+                        };
+                        
+                        allReports.Add(reportData);
+                        allImages.Add(imagePath);
+                    }
+                    
+                    // 恢复原始选中项
+                    SelectedElement = originalSelection;
+                    
+                    // 生成多页 PDF
+                    var pdfService = new PdfExportService();
+                    await Task.Run(() => pdfService.ExportMultiElementReport(dialog.FileName, allReports, allImages));
+
+                    // 清理临时图片
+                    foreach (var img in allImages)
+                    {
+                        if (!string.IsNullOrEmpty(img) && System.IO.File.Exists(img))
+                        {
+                            try { System.IO.File.Delete(img); } catch { }
+                        }
+                    }
+
+                    MessageBox.Show("PDF 分析报告已成功导出！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"导出失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        [RelayCommand]
+        private async Task GenerateZipReport()
+        {
+            if (_rawFullSequence == null || _rawFullSequence.Count == 0)
+            {
+                MessageBox.Show("当前没有可导出的测量数据！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            bool isAllCompleted = _rawFullSequence.All(s => s.Status == "已完成");
+            if (!isAllCompleted)
+            {
+                MessageBox.Show("测量尚未全部完成，请在全部测量完成后再导出报告！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (_activeConfigs == null || _activeConfigs.Count == 0)
+            {
+                MessageBox.Show("当前没有活跃的分析元素！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var dialog = new SaveFileDialog
+            {
+                Filter = "ZIP 压缩文件 (*.zip)|*.zip",
+                FileName = $"详细数据打包_{DateTime.Now:yyyyMMdd_HHmm}.zip"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                string tempDir = Path.Combine(Path.GetTempPath(), $"GD_Export_{Guid.NewGuid()}");
+                
+                try
+                {
+                    Directory.CreateDirectory(tempDir);
+                    string pdfPath = Path.Combine(tempDir, $"分析报告_{DateTime.Now:yyyyMMdd_HHmm}.pdf");
+
+                    // 1. 生成 PDF 到临时目录
+                    List<ReportDataModel> allReports = new();
+                    List<string> allImages = new();
+                    string originalSelection = SelectedElement;
+
+                    foreach (var configItem in _activeConfigs)
+                    {
+                        string elementName = configItem.ElementName.Contains("(") ? configItem.ElementName : $"{configItem.ElementName}({configItem.Wavelength})";
+                        SelectedElement = elementName;
+                        await Task.Delay(300);
+
+                        string imagePath = string.Empty;
+                        if (CapturePlotImageAction != null)
+                        {
+                            imagePath = CapturePlotImageAction.Invoke();
+                        }
+                        
+                        string curveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        if (configItem.FittingCurve != "测量校准曲线")
+                        {
+                            var db = _elementDbService.Load();
+                            var elementConfig = db.Elements.GetValueOrDefault(configItem.ElementName);
+                            var savedCurve = elementConfig?.SavedCurves?.FirstOrDefault(c => c.Name == configItem.FittingCurve);
+                            if (savedCurve != null && !string.IsNullOrEmpty(savedCurve.SaveTime))
+                            {
+                                curveTime = savedCurve.SaveTime;
+                            }
+                        }
+
+                        var firstSample = _rawFullSequence.FirstOrDefault();
+
+                        var reportData = new ReportDataModel
+                        {
+                            ElementName = SelectedElement,
+                            CurveTime = curveTime,
+                            MeasurementDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                            Repeats = firstSample?.Repeats ?? 1,
+                            Interval = firstSample?.Interval ?? 0,
+                            ConcentrationUnit = firstSample?.ConcentrationUnit ?? "ppm",
+                            Equation = EquationText,
+                            RSquared = RSquaredText,
+                            Lod = LodValue,
+                            StandardPoints = StandardPoints.ToList(),
+                            SampleResults = FilteredResults.ToList()
+                        };
+                        
+                        allReports.Add(reportData);
+                        allImages.Add(imagePath);
+                    }
+                    
+                    SelectedElement = originalSelection;
+                    
+                    var pdfService = new PdfExportService();
+                    await Task.Run(() => pdfService.ExportMultiElementReport(pdfPath, allReports, allImages));
+
+                    foreach (var img in allImages)
+                    {
+                        if (!string.IsNullOrEmpty(img) && File.Exists(img))
+                        {
+                            try { File.Delete(img); } catch { }
+                        }
+                    }
+
+                    // 2. 拷贝所有的 CSV 文件
+                    string recordsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Records");
+                    HashSet<string> filesToCopy = new HashSet<string>();
+
+                    // 2.1 收集当前测量序列中的所有样品 CSV
+                    foreach (var sample in _rawFullSequence)
+                    {
+                        string targetCsv = sample.CsvFilePath;
+                        // Fallback：如果没有路径记录（如旧版测量的遗留数据），去文件夹里找名字匹配的最新文件
+                        if (string.IsNullOrEmpty(targetCsv) || !File.Exists(targetCsv))
+                        {
+                            if (Directory.Exists(recordsDir))
+                            {
+                                var matchedFiles = Directory.GetFiles(recordsDir, $"{sample.SampleName}_*.csv");
+                                if (matchedFiles.Any())
+                                    targetCsv = matchedFiles.OrderByDescending(f => File.GetLastWriteTime(f)).First();
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(targetCsv) && File.Exists(targetCsv))
+                        {
+                            filesToCopy.Add(targetCsv);
+                        }
+                    }
+
+                    // 2.2 收集校准曲线所用到的标准品 CSV（兼顾调用的历史曲线）
+                    foreach (var report in allReports)
+                    {
+                        if (report.StandardPoints != null)
+                        {
+                            foreach (var stdPoint in report.StandardPoints)
+                            {
+                                if (Directory.Exists(recordsDir))
+                                {
+                                    var matchedFiles = Directory.GetFiles(recordsDir, $"{stdPoint.Name}_*.csv");
+                                    if (matchedFiles.Any())
+                                    {
+                                        string targetCsv = matchedFiles.OrderByDescending(f => File.GetLastWriteTime(f)).First();
+                                        filesToCopy.Add(targetCsv);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 2.3 执行所有搜集到的 CSV 文件拷贝
+                    foreach (var file in filesToCopy)
+                    {
+                        string destFile = Path.Combine(tempDir, Path.GetFileName(file));
+                        File.Copy(file, destFile, true);
+                    }
+
+                    // 3. 压缩打包
+                    if (File.Exists(dialog.FileName))
+                    {
+                        File.Delete(dialog.FileName);
+                    }
+                    ZipFile.CreateFromDirectory(tempDir, dialog.FileName);
+
+                    MessageBox.Show("详细数据与报告已成功打包导出！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"打包失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                finally
+                {
+                    // 清理临时文件夹
+                    if (Directory.Exists(tempDir))
+                    {
+                        try { Directory.Delete(tempDir, true); } catch { }
+                    }
+                }
+            }
+        }
 
         #endregion
     }

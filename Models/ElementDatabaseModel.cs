@@ -23,6 +23,7 @@ namespace GD_ControlCenter_WPF.Models
         public double RSquared { get; set; }
         public string Equation { get; set; } = string.Empty;
         public double Lod { get; set; }
+        public string SaveTime { get; set; } = string.Empty;
         public List<PointModel> Points { get; set; } = new();
     }
 

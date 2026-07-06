@@ -53,6 +53,7 @@ namespace GD_ControlCenter_WPF.Models.Messages
         [ObservableProperty] private double _interval = 0.0; // 每次采集之间的间隔，单位秒
         [ObservableProperty] private string _concentrationUnit = "ppm"; // 附加单位记录，供模板恢复使用
         [ObservableProperty] private string _status = "等待";
+        [ObservableProperty] private string _csvFilePath = string.Empty; // 存储由测量页面生成的专属 CSV 物理路径
 
         // 改用 ObservableCollection 存放各个元素的浓度，完美支持双向绑定
         public ObservableCollection<ElementConcentrationModel> ElementConcentrations { get; set; } = new();

@@ -1,4 +1,4 @@
-﻿using GD_ControlCenter_WPF.Models.Spectrometer;
+using GD_ControlCenter_WPF.Models.Spectrometer;
 using OfficeOpenXml;
 using System.IO;
 using System.Text;
@@ -381,6 +381,137 @@ namespace GD_ControlCenter_WPF.Services
                 catch
                 {
                     return null;
+                }
+            });
+        }
+
+        #endregion
+
+        #region 6. 实验报告导出 (Report)
+
+        public async Task<bool> ExportAnalysisReportAsync(string targetPath, GD_ControlCenter_WPF.ViewModels.ReportDataModel data, string imagePath)
+        {
+            if (data == null) return false;
+
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    ExcelPackage.License.SetNonCommercialPersonal("个人用户");
+                    if (File.Exists(targetPath)) File.Delete(targetPath);
+
+                    using (var package = new ExcelPackage(new FileInfo(targetPath)))
+                    {
+                        var sheet = package.Workbook.Worksheets.Add("分析报告");
+
+                        // 1. 表头
+                        sheet.Cells["A1:D1"].Merge = true;
+                        sheet.Cells["A1"].Value = $"{data.ElementName} 测量分析报告";
+                        sheet.Cells["A1"].Style.Font.Size = 16;
+                        sheet.Cells["A1"].Style.Font.Bold = true;
+                        sheet.Cells["A1"].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+
+                        sheet.Cells["A3"].Value = "导出时间:";
+                        sheet.Cells["B3"].Value = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        sheet.Cells["C3"].Value = "拟合曲线时间:";
+                        sheet.Cells["D3"].Value = data.CurveTime;
+
+                        // 2. 序列信息
+                        sheet.Cells["A5"].Value = "采样间隔 (s):";
+                        sheet.Cells["B5"].Value = data.Interval;
+                        sheet.Cells["C5"].Value = "重复测量次数:";
+                        sheet.Cells["D5"].Value = data.Repeats;
+                        sheet.Cells["A6"].Value = "浓度单位:";
+                        sheet.Cells["B6"].Value = data.ConcentrationUnit;
+
+                        // 3. 拟合方程与指标
+                        sheet.Cells["A8:D8"].Merge = true;
+                        sheet.Cells["A8"].Value = "【拟合曲线结果】";
+                        sheet.Cells["A8"].Style.Font.Bold = true;
+
+                        sheet.Cells["A9"].Value = "拟合方程:";
+                        sheet.Cells["B9"].Value = data.Equation;
+                        sheet.Cells["C9"].Value = "相关系数 (R²):";
+                        sheet.Cells["D9"].Value = data.RSquared;
+                        sheet.Cells["A10"].Value = "检出限 (LOD):";
+                        sheet.Cells["B10"].Value = $"{data.Lod:F3} {data.ConcentrationUnit}";
+
+                        // 插入图片
+                        if (!string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
+                        {
+                            var picture = sheet.Drawings.AddPicture("CurvePlot", new FileInfo(imagePath));
+                            picture.SetPosition(11, 0, 0, 0);
+                            // 缩小图片比例避免过大，假设 80% 
+                            picture.SetSize(75);
+                        }
+
+                        // 留出图片空间（约占据 20 行）
+                        int startRow = 35;
+
+                        // 4. 标准品表格
+                        sheet.Cells[startRow, 1, startRow, 4].Merge = true;
+                        sheet.Cells[startRow, 1].Value = "【校准点数据明细】";
+                        sheet.Cells[startRow, 1].Style.Font.Bold = true;
+                        startRow++;
+
+                        sheet.Cells[startRow, 1].Value = "标准品名称";
+                        sheet.Cells[startRow, 2].Value = "已知浓度";
+                        sheet.Cells[startRow, 3].Value = "响应强度";
+                        sheet.Cells[startRow, 4].Value = "RSD(%)";
+                        sheet.Cells[startRow, 1, startRow, 4].Style.Font.Bold = true;
+                        sheet.Cells[startRow, 1, startRow, 4].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                        startRow++;
+
+                        if (data.StandardPoints != null)
+                        {
+                            foreach (var p in data.StandardPoints)
+                            {
+                                sheet.Cells[startRow, 1].Value = p.Name;
+                                sheet.Cells[startRow, 2].Value = p.Concentration;
+                                sheet.Cells[startRow, 3].Value = p.Intensity;
+                                sheet.Cells[startRow, 4].Value = p.RSD;
+                                startRow++;
+                            }
+                        }
+
+                        startRow += 2;
+
+                        // 5. 待测品表格
+                        sheet.Cells[startRow, 1, startRow, 4].Merge = true;
+                        sheet.Cells[startRow, 1].Value = "【待测样品分析结果】";
+                        sheet.Cells[startRow, 1].Style.Font.Bold = true;
+                        startRow++;
+
+                        sheet.Cells[startRow, 1].Value = "样品名称";
+                        sheet.Cells[startRow, 2].Value = "测量强度";
+                        sheet.Cells[startRow, 3].Value = "RSD(%)";
+                        sheet.Cells[startRow, 4].Value = "算得浓度";
+                        sheet.Cells[startRow, 1, startRow, 4].Style.Font.Bold = true;
+                        sheet.Cells[startRow, 1, startRow, 4].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                        startRow++;
+
+                        if (data.SampleResults != null)
+                        {
+                            foreach (var r in data.SampleResults)
+                            {
+                                sheet.Cells[startRow, 1].Value = r.SampleName;
+                                sheet.Cells[startRow, 2].Value = r.Intensity;
+                                sheet.Cells[startRow, 3].Value = r.RSD;
+                                sheet.Cells[startRow, 4].Value = r.CalculatedConc;
+                                startRow++;
+                            }
+                        }
+
+                        // 自动调整列宽
+                        sheet.Cells[1, 1, startRow, 4].AutoFitColumns();
+
+                        package.Save();
+                    }
+                    return true;
+                }
+                catch
+                {
+                    return false;
                 }
             });
         }

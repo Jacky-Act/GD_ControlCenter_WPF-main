@@ -558,6 +558,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                 // 后台 CSV 落盘
                 string folder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Records");
                 string filePath = System.IO.Path.Combine(folder, $"{CurrentSample.SampleName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                CurrentSample.CsvFilePath = filePath;
                 
                 _ = Task.Run(async () =>
                 {

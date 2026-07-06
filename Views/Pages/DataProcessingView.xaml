@@ -237,8 +237,8 @@
             <!-- 3. 底部操作按钮 -->
             <materialDesign:Card Grid.Row="2" UniformCornerRadius="8" Padding="12">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="导出结果" Command="{Binding ExportDataCommand}" Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,12,0"/>
-                    <Button Content="生成实验报告" Command="{Binding GenerateReportCommand}" Style="{StaticResource MaterialDesignRaisedButton}" Background="#1E88E5" BorderBrush="#1E88E5"/>
+                    <Button Content="导出详细数据" Command="{Binding GenerateZipReportCommand}" Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,12,0"/>
+                    <Button Content="导出报告" Command="{Binding GenerateReportCommand}" Style="{StaticResource MaterialDesignRaisedButton}" Background="#1E88E5" BorderBrush="#1E88E5"/>
                 </StackPanel>
             </materialDesign:Card>
         </Grid>

@@ -31,6 +31,7 @@
     <PackageReference Include="MaterialDesignThemes" Version="5.2.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     <PackageReference Include="Ookii.Dialogs.Wpf" Version="5.0.1" />
+    <PackageReference Include="QuestPDF" Version="2026.7.0" />
     <PackageReference Include="ScottPlot.WPF" Version="5.1.57" />
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
   </ItemGroup>
