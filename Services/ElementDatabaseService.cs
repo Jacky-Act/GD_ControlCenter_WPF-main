@@ -32,8 +32,34 @@ namespace GD_ControlCenter_WPF.Services
             if (!File.Exists(_filePath)) return GenerateDefaultDatabase();
             try 
             { 
-                var db = JsonSerializer.Deserialize<ElementDatabaseModel>(File.ReadAllText(_filePath));
-                return db ?? GenerateDefaultDatabase(); 
+                string json = File.ReadAllText(_filePath);
+                
+                // 自动执行一次热迁移：如果存在旧的元素层级字段，将其下放到波长层级并重写
+                bool needsMigration = false;
+                using (var doc = JsonDocument.Parse(json))
+                {
+                    if (doc.RootElement.TryGetProperty("Elements", out var elementsProp))
+                    {
+                        foreach (var elem in elementsProp.EnumerateObject())
+                        {
+                            if (elem.Value.TryGetProperty("IntegrationTime", out _) || elem.Value.TryGetProperty("SavedCurves", out _))
+                            {
+                                needsMigration = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (needsMigration)
+                {
+                    var migratedDb = MigrateFromV1ToV2(json);
+                    Save(migratedDb); // 迁移后立即保存回硬盘，完成平滑升级
+                    return migratedDb;
+                }
+
+                var dbObj = JsonSerializer.Deserialize<ElementDatabaseModel>(json);
+                return dbObj ?? GenerateDefaultDatabase(); 
             }
             catch 
             { 
@@ -41,13 +67,69 @@ namespace GD_ControlCenter_WPF.Services
             }
         }
 
+        private ElementDatabaseModel MigrateFromV1ToV2(string json)
+        {
+            var db = GenerateDefaultDatabase(); // 用默认配置做底板
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("Elements", out var elementsProp))
+                {
+                    foreach (var elem in elementsProp.EnumerateObject())
+                    {
+                        if (db.Elements.TryGetValue(elem.Name, out var newElemConfig))
+                        {
+                            var oldConfig = elem.Value;
+                            
+                            int integrationTime = 200;
+                            if (oldConfig.TryGetProperty("IntegrationTime", out var intTimeProp)) integrationTime = intTimeProp.GetInt32();
+                            
+                            int averagingCount = 1;
+                            if (oldConfig.TryGetProperty("AveragingCount", out var avgProp)) averagingCount = avgProp.GetInt32();
+
+                            var fittingCurves = new List<string> { "测量校准曲线" };
+                            if (oldConfig.TryGetProperty("FittingCurves", out var fcProp))
+                            {
+                                fittingCurves = JsonSerializer.Deserialize<List<string>>(fcProp.GetRawText()) ?? fittingCurves;
+                            }
+
+                            var savedCurves = new List<CalibrationCurveModel>();
+                            if (oldConfig.TryGetProperty("SavedCurves", out var scProp))
+                            {
+                                savedCurves = JsonSerializer.Deserialize<List<CalibrationCurveModel>>(scProp.GetRawText()) ?? savedCurves;
+                            }
+                            
+                            // 旧系统无法区分曲线属于哪个波长，故将历史参数与曲线复制到该元素的所有波长配置下，供用户自行甄别
+                            foreach (var wConfig in newElemConfig.Wavelengths)
+                            {
+                                wConfig.IntegrationTime = integrationTime;
+                                wConfig.AveragingCount = averagingCount;
+                                wConfig.FittingCurves = new List<string>(fittingCurves);
+                                wConfig.SavedCurves = JsonSerializer.Deserialize<List<CalibrationCurveModel>>(JsonSerializer.Serialize(savedCurves)) ?? new();
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return db;
+        }
+
         public void Save(ElementDatabaseModel db)
         {
             try 
             { 
-                File.WriteAllText(_filePath, JsonSerializer.Serialize(db, new JsonSerializerOptions { WriteIndented = true })); 
+                var options = new JsonSerializerOptions 
+                { 
+                    WriteIndented = true,
+                    NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals
+                };
+                File.WriteAllText(_filePath, JsonSerializer.Serialize(db, options)); 
             }
-            catch { }
+            catch (Exception ex)
+            { 
+                System.Diagnostics.Debug.WriteLine($"Failed to save DB: {ex}");
+            }
         }
 
         private ElementDatabaseModel GenerateDefaultDatabase()
@@ -125,10 +207,12 @@ namespace GD_ControlCenter_WPF.Services
             {
                 var config = new ElementConfig
                 {
-                    IntegrationTime = 200,
-                    AveragingCount = 1,
-                    FittingCurves = new List<string> { "测量校准曲线" },
-                    Wavelengths = kvp.Value.Select(w => new WavelengthConfig { Wavelength = w }).ToList()
+                    Wavelengths = kvp.Value.Select(w => new WavelengthConfig { 
+                        Wavelength = w,
+                        IntegrationTime = 200,
+                        AveragingCount = 1,
+                        FittingCurves = new List<string> { "测量校准曲线" }
+                    }).ToList()
                 };
                 db.Elements[kvp.Key] = config;
             }

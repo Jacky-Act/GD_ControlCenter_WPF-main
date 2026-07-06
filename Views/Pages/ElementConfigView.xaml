@@ -3,7 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:helpers="clr-namespace:GD_ControlCenter_WPF.Helpers"
-             Background="{DynamicResource MaterialDesignPaper}">
+             Background="{DynamicResource MaterialDesignPaper}"
+             Focusable="True"
+             PreviewMouseDown="UserControl_PreviewMouseDown">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -157,12 +159,23 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <!-- 非编辑模式：按钮，点击加入 -->
-                                                    <Button Command="{Binding DataContext.AddWavelengthToActiveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                            CommandParameter="{Binding Value}" 
-                                                            Style="{StaticResource MaterialDesignFlatButton}" Margin="2,0" ToolTip="点击加入分析配置"
+                                                    <!-- 非编辑模式：按钮，点击选中 -->
+                                                    <Button Command="{Binding DataContext.SelectWavelengthCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}" 
+                                                            Margin="2,0" ToolTip="点击选中并编辑该波长参数"
                                                             Visibility="{Binding DataContext.IsWavelengthEditing, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBoolToVis}}">
-                                                        <TextBlock Text="{Binding Value, StringFormat={}{0} nm}" FontSize="15" />
+                                                        <Button.Style>
+                                                            <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
+                                                                <Setter Property="Foreground" Value="#333333" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                        <Setter Property="Foreground" Value="#512DA8" />
+                                                                        <Setter Property="Background" Value="#EDE7F6" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                        <TextBlock Text="{Binding Value, StringFormat={}{0} nm}" FontSize="15" FontWeight="Medium" />
                                                     </Button>
                                                     
                                                     <!-- 编辑模式：文本框 -->
@@ -203,6 +216,16 @@
 
                     <!-- 第二行：测样参数 -->
                     <materialDesign:Card Grid.Row="1" Margin="0,2.5,0,0" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
+                        <materialDesign:Card.Style>
+                            <Style TargetType="materialDesign:Card">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedWavelengthWrapper}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Hidden" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </materialDesign:Card.Style>
                         <Grid Margin="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
@@ -215,17 +238,11 @@
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <!-- 积分时间 -->
                                 <TextBlock Text="积分时间:" VerticalAlignment="Center" Margin="10,0,5,0" FontSize="15" />
-                                <TextBlock Text="{Binding CurrentIntegrationTime, StringFormat={}{0} ms}" VerticalAlignment="Center" FontSize="15" 
-                                           Visibility="{Binding IsParameterEditing, Converter={StaticResource InverseBoolToVis}}" />
-                                <TextBox Text="{Binding CurrentIntegrationTime, UpdateSourceTrigger=LostFocus}" Width="50" FontSize="15" 
-                                         Visibility="{Binding IsParameterEditing, Converter={StaticResource BoolToVis}}" />
+                                <TextBox Text="{Binding CurrentIntegrationTime, UpdateSourceTrigger=LostFocus}" Width="50" FontSize="15" ToolTip="失去焦点时自动保存" />
                                          
                                 <!-- 平均次数 -->
                                 <TextBlock Text="平均次数:" VerticalAlignment="Center" Margin="20,0,5,0" FontSize="15" />
-                                <TextBlock Text="{Binding CurrentAveragingCount}" VerticalAlignment="Center" FontSize="15" 
-                                           Visibility="{Binding IsParameterEditing, Converter={StaticResource InverseBoolToVis}}" />
-                                <TextBox Text="{Binding CurrentAveragingCount, UpdateSourceTrigger=LostFocus}" Width="40" FontSize="15" 
-                                         Visibility="{Binding IsParameterEditing, Converter={StaticResource BoolToVis}}" />
+                                <TextBox Text="{Binding CurrentAveragingCount, UpdateSourceTrigger=LostFocus}" Width="40" FontSize="15" ToolTip="失去焦点时自动保存" />
                                          
                                 <!-- 拟合曲线 -->
                                 <TextBlock Text="拟合曲线:" VerticalAlignment="Center" Margin="20,0,5,0" FontSize="15" />
@@ -248,20 +265,16 @@
                                 </ComboBox>
                             </StackPanel>
 
-                            <!-- 动态切换文字的编辑按钮 -->
+                            <!-- 加入分析配置按钮 -->
                             <Button Grid.Column="2" 
-                                    Command="{Binding ToggleParameterEditCommand}" 
-                                    Margin="10,0,0,0" VerticalAlignment="Center">
+                                    Command="{Binding AddCurrentWavelengthToActiveCommand}" 
+                                    Margin="10,0,0,0" VerticalAlignment="Center"
+                                    IsEnabled="{Binding CanAddToConfig}">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
-                                        <Setter Property="Content" Value="编辑" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsParameterEditing}" Value="True">
-                                                <Setter Property="Content" Value="确认改动" />
-                                                <Setter Property="Foreground" Value="IndianRed" />
-                                                <Setter Property="BorderBrush" Value="IndianRed" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
+                                        <Setter Property="Content" Value="加入分析配置" />
+                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryHueMidBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryHueMidBrush}" />
                                     </Style>
                                 </Button.Style>
                             </Button>

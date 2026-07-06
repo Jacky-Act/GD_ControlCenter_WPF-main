@@ -26,6 +26,14 @@ namespace GD_ControlCenter_WPF.Views.Pages
                     };
                 }
             };
+
+            // 当页面显示时，强制同步当前的计算结果绘制图表
+            this.Loaded += (s, e) => {
+                if (DataContext is DataProcessingViewModel vm)
+                {
+                    vm.TriggerPlotUpdate();
+                }
+            };
         }
 
         private void UpdateChart(double k, double b, System.Collections.Generic.List<StandardPointRow> points, string unit, bool isValidFit)

@@ -84,6 +84,82 @@ namespace GD_ControlCenter_WPF
             var config = Services.GetRequiredService<JsonConfigService>().Load();
             var hvService = Services.GetRequiredService<HighVoltageService>();
             hvService.SetHighVoltage(config.LastHvVoltage, config.LastHvCurrent);
+
+            // --- 5. 清理过期废弃的孤儿 CSV 文件 ---
+            Task.Run(() => CleanupOrphanCsvFiles());
+        }
+
+        private void CleanupOrphanCsvFiles()
+        {
+            try
+            {
+                string recordsDir = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Records");
+                if (!System.IO.Directory.Exists(recordsDir)) return;
+
+                var allCsvs = System.IO.Directory.GetFiles(recordsDir, "*.csv");
+                if (allCsvs.Length == 0) return;
+
+                var inUseFiles = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                // 1. 提取所有历史曲线依赖的文件
+                var dbService = Services.GetRequiredService<ElementDatabaseService>();
+                var db = dbService.Load();
+                foreach (var elem in db.Elements.Values)
+                {
+                    foreach (var wConfig in elem.Wavelengths)
+                    {
+                        if (wConfig.SavedCurves == null) continue;
+                        foreach (var curve in wConfig.SavedCurves)
+                        {
+                            if (curve.Points == null) continue;
+                            foreach (var pt in curve.Points)
+                            {
+                                if (!string.IsNullOrEmpty(pt.CsvFilePath))
+                                    inUseFiles.Add(System.IO.Path.GetFullPath(pt.CsvFilePath));
+                            }
+                        }
+                    }
+                }
+
+                // 2. 提取所有本地用户自行保存的序列模板文件依赖的 CSV
+                var seqStorage = Services.GetRequiredService<SequenceStorageService>();
+                string seqDir = seqStorage.GetFolderPath();
+                if (System.IO.Directory.Exists(seqDir))
+                {
+                    foreach (var seqFile in System.IO.Directory.GetFiles(seqDir, "*.seq"))
+                    {
+                        try
+                        {
+                            string json = System.IO.File.ReadAllText(seqFile);
+                            var seqList = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.List<GD_ControlCenter_WPF.Models.Messages.SampleItemModel>>(json);
+                            if (seqList != null)
+                            {
+                                foreach (var sample in seqList)
+                                {
+                                    if (!string.IsNullOrEmpty(sample.CsvFilePath))
+                                        inUseFiles.Add(System.IO.Path.GetFullPath(sample.CsvFilePath));
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                // 3. 开始执行静默清理（保留近 7 天的数据，或者被依赖的数据）
+                DateTime threshold = DateTime.Now.AddDays(-7);
+                foreach (var file in allCsvs)
+                {
+                    string fullPath = System.IO.Path.GetFullPath(file);
+                    if (inUseFiles.Contains(fullPath)) continue; // 此文件仍在某处被依赖，不杀
+
+                    var fileInfo = new System.IO.FileInfo(file);
+                    if (fileInfo.LastWriteTime < threshold) // 如果生成时间距今已超过7天，杀
+                    {
+                        try { fileInfo.Delete(); } catch { }
+                    }
+                }
+            }
+            catch { }
         }
 
         #endregion

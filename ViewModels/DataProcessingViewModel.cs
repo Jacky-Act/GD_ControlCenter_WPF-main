@@ -107,6 +107,8 @@ namespace GD_ControlCenter_WPF.ViewModels
 
         // 是否可以使用保存曲线功能 (历史曲线模式下不可用)
         [ObservableProperty] private bool _canSaveCurve = true;
+        // 当前显示的曲线是否已经被保存过，防止重复保存
+        [ObservableProperty] private bool _isCurrentCurveSaved = false;
 
         // 当前是否包含待测样品 (用于控制右下角表格遮罩)
         [ObservableProperty] private bool _hasUnknownSamples = false;
@@ -169,6 +171,11 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// <summary>
         /// 数据分区逻辑：将原始数据根据[当前选定元素]拆分为“左待测”与“右标准”
         /// </summary>
+        public void TriggerPlotUpdate()
+        {
+            UpdateFilteredData();
+        }
+
         private void UpdateFilteredData()
         {
             // 安全检查
@@ -178,6 +185,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             if (config != null)
             {
                 CanSaveCurve = config.FittingCurve == "测量校准曲线";
+                IsCurrentCurveSaved = false;
             }
 
             Application.Current.Dispatcher.Invoke(() =>
@@ -227,7 +235,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                 {
                     var db = _elementDbService.Load();
                     var elementConfig = db.Elements.GetValueOrDefault(config.ElementName);
-                    var savedCurve = elementConfig?.SavedCurves?.FirstOrDefault(c => c.Name == config.FittingCurve);
+                    var wConfig = elementConfig?.Wavelengths.FirstOrDefault(w => w.Wavelength == config.Wavelength);
+                    var savedCurve = wConfig?.SavedCurves?.FirstOrDefault(c => c.Name == config.FittingCurve);
                     
                     if (savedCurve != null && savedCurve.Points != null && savedCurve.Points.Count > 0)
                     {
@@ -324,7 +333,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                 
                 var db = _elementDbService.Load();
                 var elementConfig = db.Elements.GetValueOrDefault(config.ElementName);
-                var savedCurve = elementConfig?.SavedCurves?.FirstOrDefault(c => c.Name == config.FittingCurve);
+                var wConfig = elementConfig?.Wavelengths.FirstOrDefault(w => w.Wavelength == config.Wavelength);
+                var savedCurve = wConfig?.SavedCurves?.FirstOrDefault(c => c.Name == config.FittingCurve);
                 
                 if (savedCurve != null)
                 {
@@ -410,7 +420,18 @@ namespace GD_ControlCenter_WPF.ViewModels
         [RelayCommand]
         private void SaveCurrentCurve()
         {
+            SaveCurrentCurveCore(false);
+        }
+
+        private void SaveCurrentCurveCore(bool isAutoSave)
+        {
             if (!CanSaveCurve || EquationText.Contains("拟合点不足") || EquationText.Contains("未执行拟合")) return;
+            
+            if (IsCurrentCurveSaved)
+            {
+                if (!isAutoSave) MessageBox.Show("当前曲线已保存过，无需重复保存！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
 
             var config = _activeConfigs.FirstOrDefault(c => (c.ElementName.Contains("(") ? c.ElementName : $"{c.ElementName}({c.Wavelength})") == SelectedElement);
             if (config == null) return;
@@ -423,7 +444,13 @@ namespace GD_ControlCenter_WPF.ViewModels
                 db.Elements[config.ElementName] = new ElementConfig();
             
             var elementConfig = db.Elements[config.ElementName];
-            if (elementConfig.SavedCurves == null) elementConfig.SavedCurves = new();
+            var wConfig = elementConfig.Wavelengths.FirstOrDefault(w => w.Wavelength == config.Wavelength);
+            if (wConfig == null) 
+            {
+                wConfig = new WavelengthConfig { Wavelength = config.Wavelength };
+                elementConfig.Wavelengths.Add(wConfig);
+            }
+            if (wConfig.SavedCurves == null) wConfig.SavedCurves = new();
 
             // 解析当前斜率和截距
             double slope = 0, intercept = 0, r2 = 0;
@@ -453,7 +480,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             });
             pts.InsertRange(0, blanks);
 
-            elementConfig.SavedCurves.Add(new CalibrationCurveModel
+            wConfig.SavedCurves.Add(new CalibrationCurveModel
             {
                 Name = curveName,
                 Slope = slope,
@@ -466,9 +493,9 @@ namespace GD_ControlCenter_WPF.ViewModels
             });
 
             // 存入旧列表，供ComboBox下拉选择兼容
-            if (!elementConfig.FittingCurves.Contains(curveName))
+            if (!wConfig.FittingCurves.Contains(curveName))
             {
-                elementConfig.FittingCurves.Add(curveName);
+                wConfig.FittingCurves.Add(curveName);
             }
 
             _elementDbService.Save(db);
@@ -476,8 +503,12 @@ namespace GD_ControlCenter_WPF.ViewModels
             // 发送消息通知“元素配置”页面自动刷新该元素的下拉框
             WeakReferenceMessenger.Default.Send(new CurveSavedMessage(config.ElementName));
 
-            string saveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            MessageBox.Show($"保存时间: {saveTime}\n\n曲线已成功保存为:\n[{curveName}]\n\n下次配置元素时即可直接选择该方程！", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (!isAutoSave)
+            {
+                string saveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                MessageBox.Show($"保存时间: {saveTime}\n\n曲线已成功保存为:\n[{curveName}]\n\n下次配置元素时即可直接选择该方程！", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            IsCurrentCurveSaved = true;
         }
 
         #endregion
@@ -517,6 +548,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                 {
                     List<ReportDataModel> allReports = new();
                     List<string> allImages = new();
+                    List<string> autoSavedCurves = new();
                     
                     // 记录原始选中的元素，最后恢复
                     string originalSelection = SelectedElement;
@@ -531,6 +563,12 @@ namespace GD_ControlCenter_WPF.ViewModels
                         // 等待 300ms 使得后台拟合任务和 UI 绘图渲染完成
                         await Task.Delay(300);
 
+                        if (CanSaveCurve && !IsCurrentCurveSaved && !EquationText.Contains("拟合点不足") && !EquationText.Contains("未执行拟合"))
+                        {
+                            SaveCurrentCurveCore(true);
+                            autoSavedCurves.Add($"[{elementName}] {EquationText}");
+                        }
+
                         string imagePath = string.Empty;
                         if (CapturePlotImageAction != null)
                         {
@@ -542,7 +580,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                         {
                             var db = _elementDbService.Load();
                             var elementConfig = db.Elements.GetValueOrDefault(configItem.ElementName);
-                            var savedCurve = elementConfig?.SavedCurves?.FirstOrDefault(c => c.Name == configItem.FittingCurve);
+                            var wConfig = elementConfig?.Wavelengths.FirstOrDefault(w => w.Wavelength == configItem.Wavelength);
+                            var savedCurve = wConfig?.SavedCurves?.FirstOrDefault(c => c.Name == configItem.FittingCurve);
                             if (savedCurve != null && !string.IsNullOrEmpty(savedCurve.SaveTime))
                             {
                                 curveTime = savedCurve.SaveTime;
@@ -586,7 +625,12 @@ namespace GD_ControlCenter_WPF.ViewModels
                         }
                     }
 
-                    MessageBox.Show("PDF 分析报告已成功导出！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                    string msg = "PDF 分析报告已成功导出！";
+                    if (autoSavedCurves.Count > 0)
+                    {
+                        msg += "\n\n以下元素的当前测量曲线已为您自动保存入库：\n" + string.Join("\n", autoSavedCurves);
+                    }
+                    MessageBox.Show(msg, "成功", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
@@ -635,6 +679,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                     // 1. 生成 PDF 到临时目录
                     List<ReportDataModel> allReports = new();
                     List<string> allImages = new();
+                    List<string> autoSavedCurves = new();
                     string originalSelection = SelectedElement;
 
                     foreach (var configItem in _activeConfigs)
@@ -642,6 +687,12 @@ namespace GD_ControlCenter_WPF.ViewModels
                         string elementName = configItem.ElementName.Contains("(") ? configItem.ElementName : $"{configItem.ElementName}({configItem.Wavelength})";
                         SelectedElement = elementName;
                         await Task.Delay(300);
+
+                        if (CanSaveCurve && !IsCurrentCurveSaved && !EquationText.Contains("拟合点不足") && !EquationText.Contains("未执行拟合"))
+                        {
+                            SaveCurrentCurveCore(true);
+                            autoSavedCurves.Add($"[{elementName}] {EquationText}");
+                        }
 
                         string imagePath = string.Empty;
                         if (CapturePlotImageAction != null)
@@ -654,7 +705,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                         {
                             var db = _elementDbService.Load();
                             var elementConfig = db.Elements.GetValueOrDefault(configItem.ElementName);
-                            var savedCurve = elementConfig?.SavedCurves?.FirstOrDefault(c => c.Name == configItem.FittingCurve);
+                            var wConfig = elementConfig?.Wavelengths.FirstOrDefault(w => w.Wavelength == configItem.Wavelength);
+                            var savedCurve = wConfig?.SavedCurves?.FirstOrDefault(c => c.Name == configItem.FittingCurve);
                             if (savedCurve != null && !string.IsNullOrEmpty(savedCurve.SaveTime))
                             {
                                 curveTime = savedCurve.SaveTime;
@@ -754,7 +806,12 @@ namespace GD_ControlCenter_WPF.ViewModels
                     }
                     ZipFile.CreateFromDirectory(tempDir, dialog.FileName);
 
-                    MessageBox.Show("详细数据与报告已成功打包导出！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                    string msg = "压缩包导出成功！包含 PDF 报告以及对应的全部明细 CSV 文件。";
+                    if (autoSavedCurves.Count > 0)
+                    {
+                        msg += "\n\n以下元素的当前测量曲线已为您自动保存入库：\n" + string.Join("\n", autoSavedCurves);
+                    }
+                    MessageBox.Show(msg, "成功", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {

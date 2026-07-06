@@ -580,6 +580,10 @@ namespace GD_ControlCenter_WPF.ViewModels
                     new GD_ControlCenter_WPF.Models.Messages.MeasurementDataUpdatedMessage(MeasurementSequence.ToList())
                 );
 
+                // 【修改】：在弹窗阻塞线程之前，提前将 IsCollecting 置为 false，
+                // 使得绑定该属性的按钮立刻由“终止采集”变回“开始采集”样式。
+                IsCollecting = false;
+
                 // 自动跳向下一个样品，并终止本轮自动循环采集
                 int currentIndex = MeasurementSequence.IndexOf(CurrentSample);
                 if (currentIndex < MeasurementSequence.Count - 1)
@@ -593,7 +597,6 @@ namespace GD_ControlCenter_WPF.ViewModels
                     MessageBox.Show("整个测量序列已全部完成！\n所有序列都采集完成后，请移步数据处理！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 
-                IsCollecting = false;
                 break;
             }
         }

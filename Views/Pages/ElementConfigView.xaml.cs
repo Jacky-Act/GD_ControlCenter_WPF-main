@@ -25,6 +25,24 @@ namespace GD_ControlCenter_WPF.Views.Pages
             InitializeComponent();
         }
 
+        private void UserControl_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!(e.OriginalSource is DependencyObject originalSource)) return;
+
+            var parent = originalSource;
+            while (parent != null)
+            {
+                if (parent is TextBox || parent is Button || parent is ComboBox)
+                {
+                    return;
+                }
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+
+            // 点击了空白区域，将焦点转移到 UserControl 本身
+            this.Focus();
+        }
+
         private void FittingCurveComboBox_DropDownOpened(object sender, EventArgs e)
         {
             var comboBox = sender as ComboBox;
