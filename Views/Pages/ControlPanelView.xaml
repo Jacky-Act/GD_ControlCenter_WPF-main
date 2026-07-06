@@ -67,7 +67,7 @@
                         <!-- 左上角小标题 -->
                         <TextBlock Grid.Row="0" Margin="8" Text="转向阀门" FontSize="12" Foreground="{DynamicResource PurpleThemeBrush}" Opacity="0.5" HorizontalAlignment="Left" VerticalAlignment="Top"/>
                         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtCH1" Text="1" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="14" FontWeight="Bold">
+                            <TextBlock x:Name="TxtCH1" Text="定量环" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="14" FontWeight="Bold">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground" Value="{StaticResource PurpleThemeBrush}"/>
@@ -91,7 +91,7 @@
                                 </materialDesign:ToggleButtonAssist.OnContent>
                             </ToggleButton>
 
-                            <TextBlock x:Name="TxtCH2" Text="2" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="14" FontWeight="Bold">
+                            <TextBlock x:Name="TxtCH2" Text="连续" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="14" FontWeight="Bold">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground" Value="{StaticResource PurpleThemeBrush}"/>

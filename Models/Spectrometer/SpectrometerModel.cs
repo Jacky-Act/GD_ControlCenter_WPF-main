@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 /*
  * 文件名: SpectrometerModel.cs
@@ -162,8 +162,8 @@ namespace GD_ControlCenter_WPF.Models.Spectrometer
         /// 构造一个特征峰追踪实例。
         /// </summary>
         /// <param name="baseWavelength">初始锚点波长</param>
-        /// <param name="toleranceWindow">搜索带宽（默认为 2.0nm）</param>
-        public TrackedPeak(double baseWavelength, double toleranceWindow = 2.0)
+        /// <param name="toleranceWindow">搜索带宽（默认为 0.2nm）</param>
+        public TrackedPeak(double baseWavelength, double toleranceWindow = 0.2)
         {
             BaseWavelength = baseWavelength;
             ToleranceWindow = toleranceWindow;

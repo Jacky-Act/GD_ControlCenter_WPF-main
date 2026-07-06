@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
@@ -267,11 +267,18 @@ namespace GD_ControlCenter_WPF.ViewModels
             else
             {
                 // --- 流程 B：初始化录制上下文 ---
-                // 启动校验：确保当前配置的波长点在寻峰服务中处于活跃追踪状态
+                // 启动校验1：是否在主界面寻峰
+                if (_peakTrackingService.TrackedPeaks.Count == 0)
+                {
+                    MessageBox.Show("主界面尚未标记任何特征峰，请先返回主界面进行寻峰标记。", "操作拒绝", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // 启动校验2：寻到的峰是否在采样配置中关联
                 int activeCount = Charts.Count(c => _peakTrackingService.TrackedPeaks.Any(p => Math.Abs(p.BaseWavelength - c.TargetWavelength) < 0.01));
                 if (activeCount == 0)
                 {
-                    MessageBox.Show("当前监控列表中的波长点未被主界面标记追踪，请先标记寻峰点。", "操作拒绝", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("主界面已标记特征峰，但尚未在【采样配置】中进行关联。请点击右上角【采样配置】进行关联设置。", "操作拒绝", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
@@ -283,10 +290,20 @@ namespace GD_ControlCenter_WPF.ViewModels
                     _lockedTrackPointNames.AddRange(Charts.Select(c => c.Title));
                 }
 
-                // 清空 UI 历史波形
+                // 清空 UI 历史波形，并强制推入 (0, 0) 作为绘图起点
                 foreach (var chart in Charts)
                 {
-                    lock (chart.SyncRoot) { chart.TimePoints.Clear(); chart.IntensityPoints.Clear(); chart.HasNewData = true; }
+                    lock (chart.SyncRoot) 
+                    { 
+                        chart.TimePoints.Clear(); 
+                        chart.IntensityPoints.Clear(); 
+
+                        // 满足首个点从 0 绘制的需求
+                        chart.TimePoints.Add(0);
+                        chart.IntensityPoints.Add(0);
+
+                        chart.HasNewData = true; 
+                    }
                 }
 
                 _stopwatch.Restart();
@@ -335,11 +352,13 @@ namespace GD_ControlCenter_WPF.ViewModels
         private void OpenSamplingConfig()
         {
             var window = new GD_ControlCenter_WPF.Views.Dialogs.TimeSeriesSamplingConfigWindow();
-            window.DataContext = new GD_ControlCenter_WPF.ViewModels.Dialogs.TimeSeriesSamplingConfigViewModel(_configService, _peakTrackingService, () => window.Close());
+            window.DataContext = new GD_ControlCenter_WPF.ViewModels.Dialogs.TimeSeriesSamplingConfigViewModel(_configService, _peakTrackingService, () => window.DialogResult = true);
             window.Owner = Application.Current.MainWindow;
-            window.ShowDialog();
-
-            ReloadChartsFromConfig(); // 对话框关闭后立即刷新物理通道列表
+            
+            if (window.ShowDialog() == true)
+            {
+                ReloadChartsFromConfig(); // 对话框关闭且应用后才刷新物理通道列表
+            }
         }
 
         /// <summary>

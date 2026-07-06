@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using GD_ControlCenter_WPF.Services;
 using GD_ControlCenter_WPF.ViewModels.Dialogs;
 using GD_ControlCenter_WPF.Views.Dialogs;
@@ -32,9 +32,9 @@ namespace GD_ControlCenter_WPF.ViewModels
         [ObservableProperty] private string _settingDistance = "0";
 
         /// <summary>
-        /// 界面展示的初始方向描述（输入/输出）。
+        /// 界面展示的初始方向描述（反向/正向）。
         /// </summary>
-        [ObservableProperty] private string _directionText = "输入";
+        [ObservableProperty] private string _directionText = "反向";
 
         #endregion
 
@@ -53,7 +53,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         {
             var config = _configService.Load();
             SettingDistance = $"{config.LastSyringeDistance}";
-            DirectionText = config.IsSyringeOutput ? "输出" : "输入";
+            DirectionText = config.IsSyringeOutput ? "正向" : "反向";
         }
 
         /// <summary>

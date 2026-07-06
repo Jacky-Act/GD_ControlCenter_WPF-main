@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GD_ControlCenter_WPF.Models;
 using GD_ControlCenter_WPF.Services;
@@ -29,27 +29,28 @@ namespace GD_ControlCenter_WPF.ViewModels.Dialogs
         /// <summary>
         /// 界面显示的方向文字动态提示。
         /// </summary>
-        [ObservableProperty] private string _directionHint = "输出";
+        [ObservableProperty] private string _directionHint = "正向";
 
-        public SyringePumpSettingViewModel(JsonConfigService configService, AppConfig currentConfig, Action closeAction)
+
+        public SyringePumpSettingViewModel(JsonConfigService configService, AppConfig config, Action closeAction)
         {
             _configService = configService;
             _closeAction = closeAction;
 
-            TargetDistance = currentConfig.LastSyringeDistance;
-            IsOutput = currentConfig.IsSyringeOutput;
+            TargetDistance = config.LastSyringeDistance;
+            IsOutput = config.IsSyringeOutput;
             UpdateDirectionHint(IsOutput);
         }
 
         /// <summary>
-        /// 监听方向布尔值变化，同步更新 UI 文字提示。
+        /// 监听目标方向切换，同步更新界面提示。
         /// </summary>
-        partial void OnIsOutputChanged(bool value) => UpdateDirectionHint(value);
+        partial void OnIsOutputChanged(bool value)
+        {
+            UpdateDirectionHint(value);
+        }
 
-        /// <summary>
-        /// 更新方向文字。
-        /// </summary>
-        private void UpdateDirectionHint(bool value) => DirectionHint = value ? "输出" : "输入";
+        private void UpdateDirectionHint(bool value) => DirectionHint = value ? "正向" : "反向";
 
         /// <summary>
         /// 执行参数保存并关闭弹窗。

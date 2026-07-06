@@ -183,25 +183,41 @@ namespace GD_ControlCenter_WPF.Services.Spectrometer.Logic
         {
             if (data?.Wavelengths == null || data.Wavelengths.Length == 0) return targetWavelength;
 
-            double maxIntensityInWindow = -1;
-            int maxIndexInWindow = -1;
+            int bestPeakIndex = -1;
+            double minDistanceToTarget = double.MaxValue;
+            double absoluteMaxIntensity = -1;
+            int absoluteMaxIndex = -1;
 
-            // 1. 设定搜索范围的索引边界（性能优化：不需要遍历全谱）
-            for (int i = 0; i < data.Wavelengths.Length; i++)
+            // 1. 遍历寻找窗口内的所有“局部极大值（山头）”
+            for (int i = 1; i < data.Wavelengths.Length - 1; i++)
             {
                 double currentW = data.Wavelengths[i];
 
-                // 检查是否落入用户点击的波长窗口 [target - tolerance, target + tolerance]
                 if (Math.Abs(currentW - targetWavelength) <= tolerance)
                 {
                     double currentI = data.Intensities[i];
+                    double prevI = data.Intensities[i - 1];
+                    double nextI = data.Intensities[i + 1];
 
-                    // 2. 核心逻辑：寻找窗口内的绝对最大强度
-                    // 不再判断“山头”，而是直接找最高点，这样可以有效过滤掉点击点附近的微小毛刺
-                    if (currentI > maxIntensityInWindow)
+                    // 记录窗口内的绝对最大值，作为备用防退化方案
+                    if (currentI > absoluteMaxIntensity)
                     {
-                        maxIntensityInWindow = currentI;
-                        maxIndexInWindow = i;
+                        absoluteMaxIntensity = currentI;
+                        absoluteMaxIndex = i;
+                    }
+
+                    // 核心逻辑：判断是否为局部极大值 (山头)
+                    if (currentI > prevI && currentI > nextI)
+                    {
+                        // 计算该山头与目标波长的物理距离
+                        double distance = Math.Abs(currentW - targetWavelength);
+                        
+                        // 距离优先原则：选择距离目标波长最近的山头
+                        if (distance < minDistanceToTarget)
+                        {
+                            minDistanceToTarget = distance;
+                            bestPeakIndex = i;
+                        }
                     }
                 }
 
@@ -209,10 +225,16 @@ namespace GD_ControlCenter_WPF.Services.Spectrometer.Logic
                 if (currentW > targetWavelength + tolerance) break;
             }
 
-            // 3. 返回结果：如果找到了最高点则返回其物理波长，否则返回原始点击位置
-            if (maxIndexInWindow != -1)
+            // 2. 结果裁定
+            // 优先返回距离最近的真实局部山头
+            if (bestPeakIndex != -1)
             {
-                return data.Wavelengths[maxIndexInWindow];
+                return data.Wavelengths[bestPeakIndex];
+            }
+            // 防退化处理：如果窗口内找不到任何“山头”（例如落在一段平缓下坡上），则退化为找绝对最大值
+            else if (absoluteMaxIndex != -1)
+            {
+                return data.Wavelengths[absoluteMaxIndex];
             }
 
             return targetWavelength;
