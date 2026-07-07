@@ -55,10 +55,9 @@
                         </Separator.LayoutTransform>
                     </Separator>
 
-                    <TextBlock Text="当前分析元素:" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,10,0"/>
-                    <ComboBox Width="140" ItemsSource="{Binding ActiveElements}" 
-                              SelectedItem="{Binding SelectedElement}" 
-                              Style="{StaticResource MaterialDesignOutlinedComboBox}" />
+                    <TextBlock Text="元素:" VerticalAlignment="Center" Opacity="0.7" Margin="0,0,10,0"/>
+                    <ComboBox Width="100" ItemsSource="{Binding ActiveElements}" 
+                              SelectedItem="{Binding SelectedElement}" />
                 </StackPanel>
             </materialDesign:Card>
 

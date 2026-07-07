@@ -156,7 +156,7 @@
                                   SelectedItem="{Binding SelectedPreviewElement}"
                                   DisplayMemberPath="ElementName"
                                   materialDesign:HintAssist.Hint="切换元素"
-                                  Width="160"
+                                  Width="100"
                                   HorizontalAlignment="Right"
                                   VerticalAlignment="Center"/>
                     </Grid>

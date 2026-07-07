@@ -233,11 +233,10 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             
-                            <TextBlock Grid.Column="0" Text="测 样 参 数 " Style="{StaticResource MaterialDesignSubtitle2TextBlock}" Opacity="0.8" VerticalAlignment="Center" Margin="0,0,10,0"/>
                             
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
                                 <!-- 积分时间 -->
-                                <TextBlock Text="积分时间:" VerticalAlignment="Center" Margin="10,0,5,0" FontSize="15" />
+                                <TextBlock Text="积分时间:" VerticalAlignment="Center" Margin="0,0,5,0" FontSize="15" />
                                 <TextBox Text="{Binding CurrentIntegrationTime, UpdateSourceTrigger=LostFocus}" Width="50" FontSize="15" ToolTip="失去焦点时自动保存" />
                                          
                                 <!-- 平均次数 -->
@@ -296,7 +295,7 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0">
-                            <TextBlock Text=" 最 终 已 选 分 析 配 置 " Style="{StaticResource MaterialDesignSubtitle2TextBlock}" Opacity="0.8"/>
+                            <TextBlock Text=" 分 析 配 置 " Style="{StaticResource MaterialDesignSubtitle2TextBlock}" Opacity="0.8"/>
                             <Separator Margin="0,4,0,4" Style="{StaticResource MaterialDesignLightSeparator}"/>
                         </StackPanel>
                         
