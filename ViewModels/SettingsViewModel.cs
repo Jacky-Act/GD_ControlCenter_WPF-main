@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
@@ -88,6 +88,12 @@ namespace GD_ControlCenter_WPF.ViewModels
         private double _ignitionDelaySeconds;
 
         /// <summary>
+        /// 点火过程中的转速。
+        /// </summary>
+        [ObservableProperty]
+        private short _ignitionSpeed;
+
+        /// <summary>
         /// 实时光谱单帧保存的默认导出文件夹路径。
         /// </summary>
         [ObservableProperty]
@@ -121,6 +127,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             IsSpectrometerEnabled = config.IsSpectrometerEnabled;
             IsAutoReigniteEnabled = config.IsAutoReigniteEnabled;
             IgnitionDelaySeconds = config.IgnitionDelaySeconds;
+            IgnitionSpeed = config.IgnitionSpeed;
 
             // 路径初始化策略：若配置为空，默认指向桌面
             SingleSaveExportPath = string.IsNullOrWhiteSpace(config.SingleSaveExportPath)
@@ -196,6 +203,23 @@ namespace GD_ControlCenter_WPF.ViewModels
             {
                 var config = _configService.Load();
                 config.IgnitionDelaySeconds = Math.Round(value, 1); // 保证一秒一位精度
+                _configService.Save(config);
+            }
+        }
+
+        /// <summary>
+        /// 拦截点火转速参数变更。
+        /// 职责：强制执行数值物理边界限制并执行持久化。
+        /// </summary>
+        partial void OnIgnitionSpeedChanged(short value)
+        {
+            // 物理安全边界：50 - 100
+            if (value < 50) IgnitionSpeed = 50;
+            else if (value > 100) IgnitionSpeed = 100;
+            else
+            {
+                var config = _configService.Load();
+                config.IgnitionSpeed = value;
                 _configService.Save(config);
             }
         }
@@ -349,6 +373,24 @@ namespace GD_ControlCenter_WPF.ViewModels
         private void DecreaseIgnitionDelay()
         {
             IgnitionDelaySeconds = Math.Round(Math.Max(0.1, IgnitionDelaySeconds - 0.1), 1);
+        }
+
+        /// <summary>
+        /// 增加点火转速（+1）。
+        /// </summary>
+        [RelayCommand]
+        private void IncreaseIgnitionSpeed()
+        {
+            IgnitionSpeed = (short)Math.Min(100, IgnitionSpeed + 1);
+        }
+
+        /// <summary>
+        /// 减少点火转速（-1）。
+        /// </summary>
+        [RelayCommand]
+        private void DecreaseIgnitionSpeed()
+        {
+            IgnitionSpeed = (short)Math.Max(50, IgnitionSpeed - 1);
         }
 
         #endregion

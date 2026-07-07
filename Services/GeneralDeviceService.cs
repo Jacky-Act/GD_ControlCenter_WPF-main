@@ -1,4 +1,4 @@
-﻿using GD_ControlCenter_WPF.Services.Commands;
+using GD_ControlCenter_WPF.Services.Commands;
 
 /*
  * 文件名: GeneralDeviceService.cs
@@ -80,17 +80,18 @@ namespace GD_ControlCenter_WPF.Services
 
         /// <summary>
         /// 执行点火功能逻辑。
-        /// 从全局配置中动态获取点火延时秒数，转换精度后下发指令。
+        /// 从全局配置中动态获取点火延时秒数和转速，转换精度后下发指令。
         /// </summary>
         public void Fire()
         {
-            // 实时从本地配置中获取点火相关的延时设定
+            // 实时从本地配置中获取点火相关的延时设定和转速
             var config = _configService.Load();
 
             // 协议要求以毫秒 (ms) 为单位，故需将配置中的秒数 (double) 乘以 1000 并取整
             int delayMs = (int)(config.IgnitionDelaySeconds * 1000);
+            short speed = config.IgnitionSpeed;
 
-            var cmd = ControlCommandFactory.CreateIgnition(delayMs);
+            var cmd = ControlCommandFactory.CreateIgnition(delayMs, speed);
             _serialPortService.Send(cmd);
         }
     }

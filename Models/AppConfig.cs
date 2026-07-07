@@ -138,6 +138,11 @@ namespace GD_ControlCenter_WPF.Models
         /// </summary>
         public double IgnitionDelaySeconds { get; set; } = 1.0;
 
+        /// <summary>
+        /// 点火转速，设定点火过程中的蠕动泵转速，范围 50 - 100。
+        /// </summary>
+        public short IgnitionSpeed { get; set; } = 50;
+
         #endregion
 
         #region 3. 光谱采集与任务控制

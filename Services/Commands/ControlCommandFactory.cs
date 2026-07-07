@@ -1,4 +1,4 @@
-﻿using GD_ControlCenter_WPF.Helpers;
+using GD_ControlCenter_WPF.Helpers;
 using GD_ControlCenter_WPF.Models.Protocols;
 
 /*
@@ -167,17 +167,20 @@ namespace GD_ControlCenter_WPF.Services.Commands
         /// 生成点火序列控制指令。
         /// 触发该指令后，下位机将执行特定的点火逻辑流。
         /// </summary>
-        /// <param name="delayMs">点火前的流体预充延时（毫秒），安全范围 1000-5000ms。</param>
+        /// <param name="delayMs">点火前的流体预充延时（毫秒），安全范围 100-5000ms。</param>
+        /// <param name="speed">点火过程中的转速，安全范围 50-100。</param>
         /// <returns>13 字节点火控制报文。</returns>
-        public static byte[] CreateIgnition(int delayMs)
+        public static byte[] CreateIgnition(int delayMs, short speed)
         {
             int safeDelay = Math.Clamp(delayMs, 1000, 5000);
+            short safeSpeed = Math.Clamp(speed, (short)50, (short)100);
+            short scaledSpeed = (short)(safeSpeed * 100);
 
             byte[] data = new byte[4];
-            data[0] = 0x00;
-            data[1] = 0x00;
-            data[2] = (byte)(safeDelay % 256); // 延时低字节
-            data[3] = (byte)(safeDelay / 256); // 延时高字节
+            data[0] = (byte)(scaledSpeed / 256); // 转速高字节
+            data[1] = (byte)(scaledSpeed % 256); // 转速低字节
+            data[2] = (byte)(safeDelay % 256);   // 延时低字节
+            data[3] = (byte)(safeDelay / 256);   // 延时高字节
 
             return PackFrame(DeviceAddr.Controller, CommandType.PC_To_Controller, FunctionCode.Ignition, data);
         }
