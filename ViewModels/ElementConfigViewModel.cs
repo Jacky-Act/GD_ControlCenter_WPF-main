@@ -122,34 +122,10 @@ namespace GD_ControlCenter_WPF.ViewModels
             {
                 if (_selectedFittingCurve == value) return;
                 
-                if (!_isLoadingElement)
-                {
-                    bool hasSequence = false;
-                    try { hasSequence = WeakReferenceMessenger.Default.Send<SequenceStatusRequestMessage>().Response; } catch { }
-
-                    if (hasSequence)
-                    {
-                        var res = MessageBox.Show("当前已有待测样品序列或测量数据，更改拟合曲线将会导致后续计算逻辑变更，甚至可能需要清空当前序列重新应用！\n\n您确定要更改曲线吗？", "警告", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                        if (res != MessageBoxResult.Yes) 
-                        {
-                            OnPropertyChanged(nameof(SelectedFittingCurve));
-                            return;
-                        }
-                        
-                        WeakReferenceMessenger.Default.Send(new ClearSequenceRequestMessage());
-                    }
-                }
-
                 SetProperty(ref _selectedFittingCurve, value);
                 
                 if (!_isLoadingElement && SelectedWavelengthWrapper != null)
                 {
-                    var currentSelected = SelectedConfigs.FirstOrDefault(c => c.ElementName == SelectedElementSymbol && c.Wavelength == SelectedWavelengthWrapper.Value);
-                    if (currentSelected != null)
-                    {
-                        currentSelected.FittingCurve = value;
-                        WeakReferenceMessenger.Default.Send(new ActiveConfigsChangedMessage(SelectedConfigs.ToList()));
-                    }
                     SaveCurrentWavelengthToDb();
                     UpdateCanAddToConfigState();
                 }
@@ -365,8 +341,51 @@ namespace GD_ControlCenter_WPF.ViewModels
             var config = _configService.Load();
             double wavelength = SelectedWavelengthWrapper.Value;
 
-            // 查重，移除旧的（视为更新参数）
+            // 【新增校验】如果要更新拟合曲线，需要弹窗提示并清空序列
             var existing = SelectedConfigs.FirstOrDefault(x => x.ElementName == SelectedElementSymbol && x.Wavelength == wavelength);
+            
+            bool shouldClearSequence = false;
+            string warningMessage = "";
+
+            if (existing != null)
+            {
+                if (existing.FittingCurve != SelectedFittingCurve)
+                {
+                    bool isExistingSaved = existing.FittingCurve != "测量校准曲线";
+                    bool isNewSaved = SelectedFittingCurve != "测量校准曲线";
+
+                    // 只有在 “保存的曲线” 和 “测量校准曲线” 之间切换时，才清空序列
+                    if (isExistingSaved != isNewSaved)
+                    {
+                        shouldClearSequence = true;
+                        warningMessage = "当前已有待测样品序列或测量数据，在【测量校准曲线】与【保存的曲线】之间切换需要清空当前序列重新应用！\n\n您确定要更改并清空序列吗？";
+                    }
+                }
+            }
+            else
+            {
+                // existing == null, 意味着这是新加入的元素或波长
+                shouldClearSequence = true;
+                warningMessage = "当前已有待测样品序列或测量数据，添加新的元素/波长需要清空当前序列重新应用！\n\n您确定要添加并清空序列吗？";
+            }
+
+            if (shouldClearSequence)
+            {
+                bool hasSequence = false;
+                try { hasSequence = WeakReferenceMessenger.Default.Send<SequenceStatusRequestMessage>().Response; } catch { }
+
+                if (hasSequence)
+                {
+                    var res = MessageBox.Show(warningMessage, "警告", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                    if (res != MessageBoxResult.Yes) 
+                    {
+                        return; // 放弃操作
+                    }
+                    
+                    WeakReferenceMessenger.Default.Send(new ClearSequenceRequestMessage());
+                }
+            }
+
             if (existing != null)
             {
                 SelectedConfigs.Remove(existing);

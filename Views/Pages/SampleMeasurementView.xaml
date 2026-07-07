@@ -238,6 +238,15 @@
                                         <Setter Property="BorderBrush" Value="IndianRed"/>
                                         <Setter Property="Command" Value="{Binding StopSequenceCommand}"/>
                                     </DataTrigger>
+                                    
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsCollecting}" Value="False"/>
+                                            <Condition Binding="{Binding StartCollectingCommand.IsRunning}" Value="True"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Content" Value="正在中止..."/>
+                                        <!-- Keep the button grey and disabled looking while it's stopping -->
+                                    </MultiDataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>

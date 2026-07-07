@@ -394,8 +394,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                 double blankSD = blank.Intensity * (blank.RSD / 100.0);
                 LodValue = (slope != 0) ? (3.0 * blankSD) / slope : 0;
 
-                EquationText = $"y = {slope:F4}x + {(intercept >= 0 ? "+" : "")}{intercept:F4}";
-                RSquaredText = r2.ToString("F4");
+                EquationText = $"y = {slope:0.####}x {(intercept >= 0 ? "+ " : "- ")}{Math.Abs(intercept):0.####}";
+                RSquaredText = r2.ToString("0.####");
             }
 
             // --- 4. 浓度回算：更新左侧所有待测溶液的浓度结果 ---
@@ -404,7 +404,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                 if (slope != 0 && row.Status == "已完成")
                 {
                     // x = (y - b) / k
-                    row.CalculatedConc = Math.Round((row.Intensity - intercept) / slope, 3).ToString("F3");
+                    row.CalculatedConc = Math.Round((row.Intensity - intercept) / slope, 3).ToString("0.###");
                 }
                 else
                 {
@@ -454,11 +454,13 @@ namespace GD_ControlCenter_WPF.ViewModels
 
             // 解析当前斜率和截距
             double slope = 0, intercept = 0, r2 = 0;
-            var parts = EquationText.Replace("y = ", "").Replace("(", "").Replace(")", "").Split(new[] { "x + " }, StringSplitOptions.None);
-            if (parts.Length == 2)
+            string eq = EquationText.Replace("y = ", "").Replace("(", "").Replace(")", "").Trim();
+            int xIndex = eq.IndexOf('x');
+            if (xIndex > 0)
             {
-                double.TryParse(parts[0], out slope);
-                double.TryParse(parts[1], out intercept);
+                double.TryParse(eq.Substring(0, xIndex), out slope);
+                string interceptStr = eq.Substring(xIndex + 1).Replace(" ", "");
+                double.TryParse(interceptStr, out intercept);
             }
             double.TryParse(RSquaredText, out r2);
 

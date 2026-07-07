@@ -32,11 +32,23 @@ namespace GD_ControlCenter_WPF.Views.Pages
             var parent = originalSource;
             while (parent != null)
             {
-                if (parent is TextBox || parent is Button || parent is ComboBox)
+                // 添加对 ComboBoxItem 和 PopupRoot 的判断，防止点击下拉框时 Focus 被抢走导致选中失败
+                if (parent is TextBox || parent is Button || parent is ComboBox || parent is ComboBoxItem || parent.GetType().Name == "PopupRoot")
                 {
                     return;
                 }
                 parent = VisualTreeHelper.GetParent(parent);
+            }
+
+            // 尝试通过逻辑树再找一次，防止跨越 VisualTree
+            var logicalParent = originalSource;
+            while (logicalParent != null)
+            {
+                if (logicalParent is ComboBox || logicalParent is ComboBoxItem)
+                {
+                    return;
+                }
+                logicalParent = LogicalTreeHelper.GetParent(logicalParent);
             }
 
             // 点击了空白区域，将焦点转移到 UserControl 本身
