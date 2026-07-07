@@ -36,6 +36,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         private readonly JsonConfigService _configService;
         private readonly ElementConfigViewModel _elementConfigVM;
         private readonly PeakTrackingService _peakTracker; // 全局寻峰大管家
+        private readonly GeneralDeviceService _generalService; // 底层硬件调度
 
         #region 1. UI 绑定属性
 
@@ -46,6 +47,14 @@ namespace GD_ControlCenter_WPF.ViewModels
         [ObservableProperty] private string _selectedElement = string.Empty; // 当前下拉框选中的元素
         
         [ObservableProperty] private MeasurementGroup _currentMeasurementGroup = new(); // 当前右上角展示的元素测量组
+
+        // 统一模式属性 (从仪表盘配置同步)
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(SequenceTitle))]
+        private bool _isSmallSampleMode;
+
+        // 根据模式动态显示的标题
+        public string SequenceTitle => IsSmallSampleMode ? "小样品测量序列" : "连续进样测量序列";
 
         // 测量强度预览：当前选中的用于预览强度的元素对象
         [ObservableProperty] private ElementConcentrationModel? _selectedPreviewElement;
@@ -95,11 +104,22 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// <summary>
         /// 构造函数：注入所有依赖服务，并注册全局消息监听器。
         /// </summary>
-        public SampleMeasurementViewModel(JsonConfigService configService, ElementConfigViewModel elementConfigVM, PeakTrackingService peakTracker)
+        public SampleMeasurementViewModel(JsonConfigService configService, ElementConfigViewModel elementConfigVM, PeakTrackingService peakTracker, GeneralDeviceService generalService)
         {
             _configService = configService;
             _elementConfigVM = elementConfigVM;
             _peakTracker = peakTracker;
+            _generalService = generalService;
+
+            // 初始化模式标志
+            var config = _configService.Load();
+            IsSmallSampleMode = config.CurrentMeasurementMode == GD_ControlCenter_WPF.Models.AppConfig.MeasurementMode.FlowInjection;
+
+            // 监听全局模式切换
+            WeakReferenceMessenger.Default.Register<MeasurementModeChangedMessage>(this, (r, m) =>
+            {
+                IsSmallSampleMode = m.Value == GD_ControlCenter_WPF.Models.AppConfig.MeasurementMode.FlowInjection;
+            });
 
             // --- 核心修复：监听全局寻峰大管家变化 (处理主界面红线增删同步) ---
             // _peakTracker.TrackedPeaks.CollectionChanged += OnGlobalTrackedPeaksChanged; // 【已断开寻峰匹配逻辑】
@@ -398,6 +418,31 @@ namespace GD_ControlCenter_WPF.ViewModels
                 return;
             }
 
+            // 【小样品模式特有】检查采集配置是否超时 (上限 1 分钟)
+            if (IsSmallSampleMode)
+            {
+                long totalEstimatedTimeMs = 0;
+                var groups = _elementConfigVM.SelectedConfigs.GroupBy(c => new { c.IntegrationTime, c.AveragingCount }).ToList();
+                foreach (var group in groups)
+                {
+                    long intTime = group.Key.IntegrationTime;
+                    long avgCount = group.Key.AveragingCount;
+                    long hardwareDelay = 3 * intTime * avgCount;
+                    
+                    long measurementTime = CurrentSample.Repeats * (intTime * avgCount);
+                    long intervalDelay = (CurrentSample.Repeats - 1) * (long)(CurrentSample.Interval * 1000);
+                    if (intervalDelay < 0) intervalDelay = 0;
+                
+                    totalEstimatedTimeMs += hardwareDelay + measurementTime + intervalDelay;
+                }
+
+                if (totalEstimatedTimeMs > 60000)
+                {
+                    MessageBox.Show("当前配置的采样总时长超过了 1 分钟限制！\n在小样品模式下，从寻峰结束到有效信号采集完毕不能超过 1 分钟，请减少采样次数、缩短间隔时间或降低积分平均参数。", "配置错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
             // 启动确认弹窗（显示样品信息、元素波长及浓度）
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"当前测样序列：{CurrentSample.SampleName}");
@@ -451,6 +496,52 @@ namespace GD_ControlCenter_WPF.ViewModels
                 }
 
                 CurrentSample.Status = "采集数据中...";
+
+                // 【小样品模式特有】前置硬件调度动作
+                if (IsSmallSampleMode)
+                {
+                    CurrentSample.Status = "进定量环...";
+
+                    // Step 1: 转向阀门切至通道 2 (连续)，等待 1 秒
+                    _generalService.ControlSteeringValve(false); 
+                    await Task.Delay(1000);
+                
+                    // Step 2: 注射泵按最大行程(3000)抽推 5 次
+                    // 独立于主界面卡片配置：强制使用 正向 (true)
+                    bool initialPort = true;
+                    int motionTime = 4500; // 行程4500ms
+                    int restTime = 1000;   // 停顿1000ms
+                
+                    for (int i = 0; i < 5; i++)
+                    {
+                        if (!IsCollecting) break;
+
+                        // 抽一下 (3000行程)
+                        _generalService.ControlSyringePump(initialPort, 3000);
+                        await Task.Delay(motionTime + restTime); // 4.5s运行 + 1s停顿
+                        if (!IsCollecting) break;
+                
+                        // 推一下 (归零)
+                        _generalService.ControlSyringePump(!initialPort, 0);
+                        await Task.Delay(motionTime + restTime); // 4.5s运行 + 1s停顿
+                    }
+                    
+                    if (!IsCollecting) break; // 中途取消
+
+                    // Step 3: 转向阀门切至通道 1 (定量环)
+                    _generalService.ControlSteeringValve(true);
+                
+                    // Step 4: 等待 1 分钟 (60000ms) 响应取消分段等待
+                    CurrentSample.Status = "进激发区...";
+                    for (int w = 0; w < 60; w++)
+                    {
+                        if (!IsCollecting) break;
+                        await Task.Delay(1000);
+                    }
+                    if (!IsCollecting) break;
+                    
+                    CurrentSample.Status = "采集数据中...";
+                }
 
                 // 按积分时间和平均次数分组
                 var groups = _elementConfigVM.SelectedConfigs

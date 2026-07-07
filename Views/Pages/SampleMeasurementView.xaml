@@ -30,7 +30,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Text="连续进样测量序列" FontWeight="Bold" FontSize="16" Margin="0,0,0,10" Opacity="0.6"/>
+                <TextBlock Text="{Binding SequenceTitle}" FontWeight="Bold" FontSize="16" Margin="0,0,0,10" Opacity="0.6"/>
                 <DataGrid Grid.Row="1" ItemsSource="{Binding MeasurementSequence}" SelectedItem="{Binding CurrentSample}"
                           AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                           IsEnabled="{Binding IsCollecting, Converter={StaticResource InverseBoolConverter}}">
