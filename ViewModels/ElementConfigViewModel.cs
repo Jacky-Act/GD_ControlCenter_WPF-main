@@ -425,6 +425,18 @@ namespace GD_ControlCenter_WPF.ViewModels
         {
             if (CurrentSelectedConfig != null)
             {
+                var res = System.Windows.MessageBox.Show(
+                    "确定要删除选中配置吗？\n\n警告：删除配置将同步清空当前已配置好的样品序列，且所有已测量的样品数据（及相关CSV文件）也将被同步彻底删除！",
+                    "删除确认", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+                
+                if (res != System.Windows.MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                // 确定删除后，清空测量页面和序列页面的数据
+                WeakReferenceMessenger.Default.Send(new ClearSequenceRequestMessage());
+
                 var removed = CurrentSelectedConfig;
                 SelectedConfigs.Remove(CurrentSelectedConfig);
                 WeakReferenceMessenger.Default.Send(new ActiveConfigsChangedMessage(SelectedConfigs.ToList()));

@@ -442,52 +442,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             MessageBox.Show("序列模板保存成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        [RelayCommand]
-        private void ImportCsv()
-        {
-            var dialog = new OpenFileDialog { Filter = "CSV 文件 (*.csv)|*.csv" };
-            if (dialog.ShowDialog() == true)
-            {
-                try
-                {
-                    // 使用增强版 Service 导入
-                    var importedData = _storageService.ImportFromCsv(dialog.FileName, out var detectedElements);
 
-                    var newConfigs = detectedElements.Select(e => new AnalysisConfigItem { ElementName = e }).ToList();
-
-                    _isDirtyOverwrite = true;
-                    Samples.Clear();
-                    foreach (var item in importedData) Samples.Add(item);
-
-                    // 触发界面更新
-                    UpdateActiveElements(newConfigs);
-                    MessageBox.Show("CSV 导入成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"导入失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        [RelayCommand]
-        private void ExportCsv()
-        {
-            if (Samples.Count == 0) return;
-
-            var dialog = new SaveFileDialog
-            {
-                Filter = "CSV 文件 (*.csv)|*.csv",
-                FileName = $"序列导出_{DateTime.Now:yyyyMMdd_HHmm}"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                // 导出当前显示的样品及所有动态浓度列
-                _storageService.ExportToCsv(dialog.FileName, Samples.ToList(), _activeElements);
-                MessageBox.Show("导出 CSV 成功！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
 
         private bool _isDirtyOverwrite = true;
 

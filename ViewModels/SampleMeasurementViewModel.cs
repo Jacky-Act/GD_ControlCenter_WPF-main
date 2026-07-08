@@ -14,6 +14,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows; 
 using Microsoft.Win32; 
+using Microsoft.Extensions.DependencyInjection;
+
 
 namespace GD_ControlCenter_WPF.ViewModels
 {
@@ -129,6 +131,21 @@ namespace GD_ControlCenter_WPF.ViewModels
             {
                 if (m.IsOverwrite)
                 {
+                    // 在清空序列前，同步删除已生成的 CSV 文件
+                    if (MeasurementSequence != null)
+                    {
+                        foreach (var sample in MeasurementSequence)
+                        {
+                            if (!string.IsNullOrEmpty(sample.CsvFilePath) && System.IO.File.Exists(sample.CsvFilePath))
+                            {
+                                try
+                                {
+                                    System.IO.File.Delete(sample.CsvFilePath);
+                                }
+                                catch { }
+                            }
+                        }
+                    }
                     MeasurementSequence = new ObservableCollection<SampleItemModel>(m.Value);
                 }
                 else
@@ -464,7 +481,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                     sb.AppendLine($" - {ec.ElementName}");
                 }
             }
-            sb.AppendLine("\n请确认放置好当前样品后，点击“确定”开始测量。");
+            sb.AppendLine("\n请确认放置好当前样品，并确认测量点光谱稳定后，点击“确定”开始测量。");
 
             var result = MessageBox.Show(sb.ToString(), "开始采集确认", MessageBoxButton.OKCancel, MessageBoxImage.Information);
             if (result != MessageBoxResult.OK) return;
@@ -503,7 +520,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                     CurrentSample.Status = "进定量环...";
 
                     // Step 1: 转向阀门切至通道 2 (连续)，等待 1 秒
-                    _generalService.ControlSteeringValve(false); 
+                    App.Services.GetRequiredService<ControlPanelViewModel>().IsSteeringValveActive = true; 
                     await Task.Delay(1000);
                 
                     // Step 2: 注射泵按最大行程(3000)抽推 5 次
@@ -529,7 +546,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                     if (!IsCollecting) break; // 中途取消
 
                     // Step 3: 转向阀门切至通道 1 (定量环)
-                    _generalService.ControlSteeringValve(true);
+                    App.Services.GetRequiredService<ControlPanelViewModel>().IsSteeringValveActive = false;
                 
                     // Step 4: 等待 1 分钟 (60000ms) 响应取消分段等待
                     CurrentSample.Status = "进激发区...";
@@ -567,8 +584,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                         CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new GD_ControlCenter_WPF.Models.Messages.HardwareConfigChangedMessage(device.Config.SerialNumber, intTime, (uint)avgCount));
                     }
 
-                    // 切换参数后等待硬件稳定: 3 * (积分时间 * 平均次数)
-                    await Task.Delay(3 * intTime * avgCount);
+                    // 切换参数后等待硬件稳定: 固定等待 3 秒
+                    await Task.Delay(3000);
 
                     for (int r = 0; r < CurrentSample.Repeats; r++)
                     {

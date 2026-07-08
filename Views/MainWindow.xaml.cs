@@ -78,7 +78,7 @@ namespace GD_ControlCenter_WPF.Views
             double screenHeight = SystemParameters.WorkArea.Height;
 
             // 比例规则定义：设定初始建议尺寸比例
-            double widthRatio = 0.82;  // 宽度占屏幕 80%
+            double widthRatio = 0.84;  // 宽度占屏幕 84%
             double heightRatio = 0.72; // 高度占屏幕 72%
 
             // 计算目标尺寸基准值

@@ -182,8 +182,23 @@ namespace GD_ControlCenter_WPF.ViewModels
                     // 步骤 B：UI 轨道更新 (带线程隔离保护)
                     lock (chart.SyncRoot)
                     {
-                        chart.TimePoints.Add(currentTime);
-                        chart.IntensityPoints.Add(matchedPeak.CurrentIntensity);
+                        if (!chart.StartTimeOffset.HasValue)
+                        {
+                            chart.StartTimeOffset = currentTime;
+                        }
+                        
+                        double relativeTime = currentTime - chart.StartTimeOffset.Value;
+                        chart.TimePoints.Add(relativeTime);
+
+                        // 满足用户“第一帧固定是0，第二帧再连到实际强度”的需求
+                        double intensity = matchedPeak.CurrentIntensity;
+                        if (chart.IsFirstFrame)
+                        {
+                            intensity = 0;
+                            chart.IsFirstFrame = false;
+                        }
+                        
+                        chart.IntensityPoints.Add(intensity);
 
                         // FIFO 淘汰逻辑：若点数溢出，从队首移除最老的数据
                         if (chart.TimePoints.Count > MAX_UI_POINTS)
@@ -302,6 +317,10 @@ namespace GD_ControlCenter_WPF.ViewModels
                         chart.TimePoints.Add(0);
                         chart.IntensityPoints.Add(0);
 
+                        // 重置时间偏移，因为秒表马上要重新开始了
+                        chart.StartTimeOffset = null;
+                        chart.IsFirstFrame = true;
+
                         chart.HasNewData = true; 
                     }
                 }
@@ -368,8 +387,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         private void ReloadChartsFromConfig()
         {
             var config = _configService.Load();
-            Charts.Clear();
-
+            
             var validNodes = config.TimeSeriesSampleNodes?
                 .Where(n => !string.IsNullOrWhiteSpace(n.Name) && n.SelectedPeakX.HasValue)
                 .Where(n => _peakTrackingService.TrackedPeaks.Any(p => Math.Abs(p.BaseWavelength - n.SelectedPeakX!.Value) < 0.01))
@@ -377,14 +395,45 @@ namespace GD_ControlCenter_WPF.ViewModels
 
             if (validNodes == null || validNodes.Count == 0)
             {
+                Charts.Clear();
                 Charts.Add(new TimeSeriesChartItem("等待特征峰标记...", 0, 0));
             }
             else
             {
-                for (int i = 0; i < validNodes.Count; i++)
+                // 1. 移除无效图表（如果该图表的波长不在有效节点列表中，或者它是占位符）
+                var toRemove = Charts.Where(c => c.TargetWavelength == 0 || !validNodes.Any(n => Math.Abs(c.TargetWavelength - n.SelectedPeakX!.Value) < 0.01)).ToList();
+                foreach (var rm in toRemove)
                 {
-                    var node = validNodes[i];
-                    Charts.Add(new TimeSeriesChartItem($"{node.Name} ({node.SelectedPeakX!.Value:F2} nm)", node.SelectedPeakX!.Value, i));
+                    Charts.Remove(rm);
+                }
+
+                // 2. 遍历有效节点，保留已存在的并更新名字，或者添加新的
+                foreach (var node in validNodes)
+                {
+                    var existing = Charts.FirstOrDefault(c => Math.Abs(c.TargetWavelength - node.SelectedPeakX!.Value) < 0.01);
+                    string expectedTitle = $"{node.Name} ({node.SelectedPeakX!.Value:F2} nm)";
+                    
+                    if (existing != null)
+                    {
+                        if (existing.Title != expectedTitle)
+                        {
+                            existing.Title = expectedTitle;
+                        }
+                    }
+                    else
+                    {
+                        // 新添加的曲线会分配新的颜色和全新的独立时间轴
+                        var newChart = new TimeSeriesChartItem(expectedTitle, node.SelectedPeakX!.Value, Charts.Count);
+                        
+                        // 提前打下时间戳基准，这样当第一个真实数据来到时，会有一个细微的时间差（如 X=0.05s），
+                        // 配合构造函数里压入的 (0,0) 点，就能在图上画出一条明显的从零起跳的斜线，而不是重叠的垂直线。
+                        if (_stopwatch.IsRunning)
+                        {
+                            newChart.StartTimeOffset = _stopwatch.Elapsed.TotalSeconds;
+                        }
+                        
+                        Charts.Add(newChart);
+                    }
                 }
             }
             UpdateGridColumns();
@@ -412,6 +461,12 @@ namespace GD_ControlCenter_WPF.ViewModels
             /// <summary> 物理强度点集 (Y)。 </summary>
             public List<double> IntensityPoints { get; } = new();
 
+            /// <summary> 该通道记录起始的全局时间偏移，用于保证每条曲线 X 轴均从 0 开始。 </summary>
+            public double? StartTimeOffset { get; set; } = null;
+
+            /// <summary> 标识是否是获取到的第一个真实数据帧，用于强制压0起跳。 </summary>
+            public bool IsFirstFrame { get; set; } = true;
+
             /// <summary> 通道级专用锁：防止后台 Inject 写入与 UI 渲染读取发生碰撞。 </summary>
             public object SyncRoot { get; } = new object();
 
@@ -425,6 +480,10 @@ namespace GD_ControlCenter_WPF.ViewModels
             {
                 Title = title;
                 TargetWavelength = targetWavelength;
+
+                // 满足首个点从 0 绘制的需求
+                TimePoints.Add(0);
+                IntensityPoints.Add(0);
 
                 // 科学绘图标准色板（高对比度）
                 string[] hexColors = { "#1976D2", "#D32F2F", "#388E3C", "#F57C00", "#7B1FA2", "#0097A7", "#E64A19", "#689F38", "#C2185B", "#5D4037" };

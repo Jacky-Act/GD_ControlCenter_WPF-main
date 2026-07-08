@@ -104,6 +104,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         [ObservableProperty] private string _equationText = "未执行拟合";
         [ObservableProperty] private string _rSquaredText = "0.0000";
         [ObservableProperty] private double _lodValue; // 检出限 (3*SD_blank/slope)
+        [ObservableProperty] private string _displayUnit = "ppm";
 
         // 是否可以使用保存曲线功能 (历史曲线模式下不可用)
         [ObservableProperty] private bool _canSaveCurve = true;
@@ -344,6 +345,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                     EquationText = savedCurve.Equation;
                     RSquaredText = r2.ToString("F4");
                     LodValue = savedCurve.Lod;
+                    DisplayUnit = _rawFullSequence?.FirstOrDefault()?.ConcentrationUnit ?? "ppm";
                 }
                 else
                 {
@@ -364,7 +366,9 @@ namespace GD_ControlCenter_WPF.ViewModels
                     EquationText = "拟合点不足";
                     RSquaredText = "0.0000";
                     LodValue = 0;
-                    RequestPlotUpdate?.Invoke(0, 0, StandardPoints.ToList(), _rawFullSequence?.FirstOrDefault()?.ConcentrationUnit ?? "ppm", false);
+                    string fallbackUnit = _rawFullSequence?.FirstOrDefault()?.ConcentrationUnit ?? "ppm";
+                    DisplayUnit = fallbackUnit;
+                    RequestPlotUpdate?.Invoke(0, 0, StandardPoints.ToList(), fallbackUnit, false);
                     return;
                 }
 
@@ -394,7 +398,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                 double blankSD = blank.Intensity * (blank.RSD / 100.0);
                 LodValue = (slope != 0) ? (3.0 * blankSD) / slope : 0;
 
-                EquationText = $"y = {slope:0.####}x {(intercept >= 0 ? "+ " : "- ")}{Math.Abs(intercept):0.####}";
+                EquationText = $"y = {slope:0.00}x {(intercept >= 0 ? "+ " : "- ")}{Math.Abs(intercept):0.00}";
                 RSquaredText = r2.ToString("0.####");
             }
 
@@ -414,6 +418,7 @@ namespace GD_ControlCenter_WPF.ViewModels
 
             // --- 5. 发送重绘信号给 View 层进行 ScottPlot 渲染 ---
             string unit = _rawFullSequence?.FirstOrDefault()?.ConcentrationUnit ?? "ppm";
+            DisplayUnit = unit;
             RequestPlotUpdate?.Invoke(slope, intercept, plotPoints, unit, true);
         }
 

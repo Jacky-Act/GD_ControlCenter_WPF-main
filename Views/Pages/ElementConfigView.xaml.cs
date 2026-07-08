@@ -37,7 +37,14 @@ namespace GD_ControlCenter_WPF.Views.Pages
                 {
                     return;
                 }
-                parent = VisualTreeHelper.GetParent(parent);
+                if (parent is System.Windows.Media.Visual || parent is System.Windows.Media.Media3D.Visual3D)
+                {
+                    parent = VisualTreeHelper.GetParent(parent);
+                }
+                else
+                {
+                    parent = LogicalTreeHelper.GetParent(parent);
+                }
             }
 
             // 尝试通过逻辑树再找一次，防止跨越 VisualTree

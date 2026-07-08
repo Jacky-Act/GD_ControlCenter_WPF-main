@@ -124,7 +124,7 @@ namespace GD_ControlCenter_WPF.Services.Commands
             short safeDistance = Math.Clamp(distance, (short)0, (short)3000);
 
             byte[] data = new byte[4];
-            data[0] = (byte)(isOutput ? 1 : 0);     // 方向位
+            data[0] = (byte)(isOutput ? 0 : 1);     // 方向位 (已按要求反转)
             data[1] = (byte)(safeDistance / 256);   // 距离高 8 位
             data[2] = (byte)(safeDistance % 256);   // 距离低 8 位
             data[3] = 0x00;
