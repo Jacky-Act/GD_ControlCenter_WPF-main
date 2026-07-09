@@ -554,6 +554,17 @@ namespace GD_ControlCenter_WPF.ViewModels
         [RelayCommand]
         private void OpenPlatform3DWindow()
         {
+            var existingWindow = System.Windows.Application.Current.Windows.OfType<GD_ControlCenter_WPF.Views.Dialogs.Platform3DWindow>().FirstOrDefault();
+            if (existingWindow != null)
+            {
+                if (existingWindow.WindowState == System.Windows.WindowState.Minimized)
+                {
+                    existingWindow.WindowState = System.Windows.WindowState.Normal;
+                }
+                existingWindow.Activate();
+                return;
+            }
+
             var platformService = App.Services.GetRequiredService<IPlatform3DService>();
             var calibrationService = App.Services.GetRequiredService<PlatformCalibrationService>();
             var jsonConfigService = App.Services.GetRequiredService<JsonConfigService>();
@@ -782,6 +793,9 @@ namespace GD_ControlCenter_WPF.ViewModels
                 if (double.TryParse(_hvVM.MonitorCurrent, out double current) && current > 5.0)
                 {
                     _isReigniting = false;
+                    _isPlasmaStable = true;
+                    _reigniteAttemptCount = 0;
+                    StatusInfo = "等离子体已稳定运行";
                     return;
                 }
             }

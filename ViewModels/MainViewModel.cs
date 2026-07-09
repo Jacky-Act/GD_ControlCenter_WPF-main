@@ -70,6 +70,8 @@ namespace GD_ControlCenter_WPF.ViewModels
         // <summary> 获取数据处理业务视图模型。 </summary>
         public DataProcessingViewModel DataProcessingVM { get; }
         
+        // <summary> 获取帮助文档视图模型。 </summary>
+        public HelpViewModel HelpVM { get; }
 
         #endregion
 
@@ -93,7 +95,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// 接收由 App.xaml.cs 构建的单例服务与视图模型实例。
         /// </summary>
         public MainViewModel(ControlPanelViewModel controlPanelVM, SettingsViewModel settingsVM, TimeSeriesViewModel timeSeriesVM, ElementConfigViewModel elementConfigVM, SampleSequenceViewModel sampleSequenceVM, SampleMeasurementViewModel sampleMeasurementVM, 
-            AnalysisWorkstationViewModel analysisWorkstationVM, DataProcessingViewModel dataProcessingVM, HighVoltageService hvService, JsonConfigService configService, ProtocolService protocolService)
+            AnalysisWorkstationViewModel analysisWorkstationVM, DataProcessingViewModel dataProcessingVM, HelpViewModel helpVM, HighVoltageService hvService, JsonConfigService configService, ProtocolService protocolService)
         {
             ControlPanelVM = controlPanelVM;
             SettingsVM = settingsVM;
@@ -103,6 +105,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             SampleMeasurementVM = sampleMeasurementVM;
             AnalysisWorkstationVM = analysisWorkstationVM;
             DataProcessingVM = dataProcessingVM;
+            HelpVM = helpVM;
 
             _hvService = hvService;
             _configService = configService;
@@ -116,6 +119,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             AllPages.Add(AnalysisWorkstationVM);
             AllPages.Add(DataProcessingVM);
             AllPages.Add(SettingsVM);
+            AllPages.Add(HelpVM);
 
             // 软件启动后默认展示主控制面板
             _currentPage = ControlPanelVM;

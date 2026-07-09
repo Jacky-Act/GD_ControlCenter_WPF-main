@@ -524,8 +524,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                     await Task.Delay(1000);
                 
                     // Step 2: 注射泵按最大行程(3000)抽推 5 次
-                    // 独立于主界面卡片配置：强制使用 正向 (true)
-                    bool initialPort = true;
+                    // 独立于主界面卡片配置：强制小样品的“抽”使用 false，“推”使用 true
+                    bool initialPort = false;
                     int motionTime = 4500; // 行程4500ms
                     int restTime = 1000;   // 停顿1000ms
                 

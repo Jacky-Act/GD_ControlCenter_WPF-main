@@ -75,6 +75,7 @@ namespace GD_ControlCenter_WPF
             services.AddSingleton<FlowInjectionViewModel>();
             services.AddSingleton<AnalysisWorkstationViewModel>();
             services.AddSingleton<DataProcessingViewModel>();
+            services.AddSingleton<HelpViewModel>();
 
             // 构建服务提供者容器
             Services = services.BuildServiceProvider();

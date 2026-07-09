@@ -70,7 +70,8 @@ namespace GD_ControlCenter_WPF.ViewModels
 
                 var config = _configService.Load();
                 short targetDistance = (short)config.LastSyringeDistance;
-                bool initialPort = config.IsSyringeOutput;
+                // 正向(true) 时抽用 false 推用 true；反向(false) 时抽用 true 推用 false
+                bool initialPort = !config.IsSyringeOutput;
 
                 // 2. 动态计算动作所需时间
                 // 公式：(量程比) * 4.5秒全行程时间 + 1秒物理惯性缓冲

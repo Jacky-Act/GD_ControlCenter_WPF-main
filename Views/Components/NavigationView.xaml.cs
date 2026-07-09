@@ -94,8 +94,7 @@ namespace GD_ControlCenter_WPF.Views.Components
                 }
                 else if (BottomTabControl.SelectedItem == HelpTab)
                 {
-                    // 预留帮助页面入口。
-                    // vm.CurrentPage = vm.HelpVM; 
+                    vm.CurrentPage = vm.HelpVM; 
                 }
             }
         }
