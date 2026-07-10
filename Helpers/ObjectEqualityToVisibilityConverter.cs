@@ -1,7 +1,13 @@
-using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+
+/*
+ * 文件名: ObjectEqualityToVisibilityConverter.cs
+ * 描述: 本文件包含一个对象等值判断与可见性转换器（Converter），
+ * 核心作用是配合 ItemsControl 实现 WPF 客户端页面的内存常驻缓存机制。
+ * 只有当绑定的列表项 ViewModel 与全局激活的 CurrentPage 完全相同时，才将页面状态设为可见（Visible），其余所有非激活页面均设为折叠（Collapsed）以提升渲染性能。
+ */
 
 namespace GD_ControlCenter_WPF.Helpers
 {
