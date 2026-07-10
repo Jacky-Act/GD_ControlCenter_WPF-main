@@ -61,6 +61,12 @@ namespace GD_ControlCenter_WPF.ViewModels
         // 测量强度预览：当前选中的用于预览强度的元素对象
         [ObservableProperty] private ElementConcentrationModel? _selectedPreviewElement;
 
+        // 右侧：扫描记录表 (小样模式专属)
+        [ObservableProperty] private ObservableCollection<FlowInjectionResultData> _scanRecords = new();
+        [ObservableProperty] private FlowInjectionResultData? _selectedScanRecord;
+        [ObservableProperty] private bool _isScanning; // 小样模式正在单次扫描
+        private List<double> _scanBuffer = new(); // 记录小样模式本次扫描的所有强度点
+
         partial void OnCurrentSampleChanged(SampleItemModel? value)
         {
             UpdateMeasurementGroupDisplay();
@@ -767,6 +773,62 @@ namespace GD_ControlCenter_WPF.ViewModels
             }
         }
 
+        #region 小样模式专属交互命令
+
+        // 按钮1：开始单次扫描
+        [RelayCommand]
+        private void StartScan()
+        {
+            if (CurrentSample == null) return;
+            _scanBuffer.Clear();
+            IsScanning = true;
+            CurrentSample.Status = "正在扫描...";
+        }
+
+        // 按钮2：停止扫描并计算峰值
+        [RelayCommand]
+        private void StopScan()
+        {
+            IsScanning = false;
+            if (_scanBuffer.Count > 0)
+            {
+                // 计算峰值数据
+                var result = new FlowInjectionResultData
+                {
+                    ScanIndex = ScanRecords.Count + 1,
+                    ElementName = SelectedElement,
+                    PeakIntensity = _scanBuffer.Max(),
+                    BackgroundIntensity = _scanBuffer.Min(),
+                    StartTime = 0,
+                    EndTime = _scanBuffer.Count * 0.1
+                };
+                ScanRecords.Add(result);
+            }
+        }
+
+        // 按钮3：完成该样品（清空记录，跳到下一个）
+        [RelayCommand]
+        private void FinishSample()
+        {
+            if (CurrentSample == null) return;
+            CurrentSample.Status = "已完成";
+            ScanRecords.Clear(); // 清空右侧记录，为下个样品腾位子
+
+            int currentIndex = MeasurementSequence.IndexOf(CurrentSample);
+            if (currentIndex < MeasurementSequence.Count - 1)
+                CurrentSample = MeasurementSequence[currentIndex + 1];
+            else
+                MessageBox.Show("全序列流动注射测量完成！");
+        }
+
+        public void AddDataToScan(double intensity)
+        {
+            if (IsScanning) _scanBuffer.Add(intensity);
+        }
+
         #endregion
+
+        #endregion
+
     }
 }

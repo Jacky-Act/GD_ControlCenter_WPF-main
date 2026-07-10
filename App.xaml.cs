@@ -72,8 +72,6 @@ namespace GD_ControlCenter_WPF
             services.AddSingleton<ElementConfigViewModel>();
             services.AddSingleton<SampleSequenceViewModel>();
             services.AddSingleton<SampleMeasurementViewModel>();
-            services.AddSingleton<FlowInjectionViewModel>();
-            services.AddSingleton<AnalysisWorkstationViewModel>();
             services.AddSingleton<DataProcessingViewModel>();
             services.AddSingleton<HelpViewModel>();
 

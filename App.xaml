@@ -32,15 +32,7 @@
                 <pages:SampleSequenceView />
             </DataTemplate>
             
-            <DataTemplate DataType="{x:Type vm:AnalysisWorkstationViewModel}">
-                <pages:AnalysisWorkstationView />
-            </DataTemplate>
-
             <DataTemplate DataType="{x:Type vm:SampleMeasurementViewModel}">
-                <pages:SampleMeasurementView />
-            </DataTemplate>
-
-            <DataTemplate DataType="{x:Type vm:FlowInjectionViewModel}">
                 <pages:SampleMeasurementView />
             </DataTemplate>
 

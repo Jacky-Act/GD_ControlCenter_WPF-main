@@ -27,7 +27,6 @@ namespace GD_ControlCenter_WPF.Views.Pages
 
             WeakReferenceMessenger.Default.Register<SpectralDataMessage>(this, (r, m) => OnPlotUpdateRequested(m.Value));
             WeakReferenceMessenger.Default.Register<TrendPlotRefreshMessage>(this, (r, m) => RenderTrendPlot());
-
             this.DataContextChanged += (s, e) =>
             {
                 if (e.OldValue is SampleMeasurementViewModel oldVm)
@@ -78,6 +77,12 @@ namespace GD_ControlCenter_WPF.Views.Pages
                     Dispatcher.Invoke(() => vm.PickedElements.Clear());
                 }
             });
+            
+            SpecPlot.Menu?.Add("捕捉为流动注射监控峰 (小样模式专属)", (p) => {
+                if (this.DataContext is SampleMeasurementViewModel vm && vm.IsSmallSampleMode) {
+                    Dispatcher.Invoke(() => vm.PickedElements.Add($"峰@{_lastMouseX:F2}"));
+                }
+            });
         }
 
         private void OnPlotUpdateRequested(SpectralData data)
@@ -118,27 +123,26 @@ namespace GD_ControlCenter_WPF.Views.Pages
                 Array.Copy(data.Wavelengths, _cachedWavelengths, len);
                 Array.Copy(data.Intensities, _cachedIntensities, len);
             }
+            
+            // 全谱颜色保持原样
+            _livePlot.Color = ScottPlot.Colors.C0;
 
-            /*
-                // 【已断开寻峰匹配与推送逻辑】
-                foreach (var peak in vm.PeakTracker.TrackedPeaks)
+            // 2. 将采集到的全谱数据直接交给 VM 处理提取强度（空方法占位）
+            vm.ExtractIntensityFromFullSpectrum(data.Wavelengths, data.Intensities);
+
+            SpecPlot.Plot.Axes.AutoScale();
+            SpecPlot.Refresh();
+            
+            // 3. 将数据累加进VM扫描队列（如果属于小样模式的采集中）
+            if (vm.IsSmallSampleMode)
+            {
+                double targetWl = vm.GetTargetWavelength();
+                if (targetWl > 0)
                 {
-                    SpecPlot.Plot.Add.VerticalLine(peak.CurrentWavelength, 1.2f, ScottPlot.Color.FromHex("#F44336"));
-                    
-                    // 将每个红线点的数据泵入 VM 缓冲区
-                    string name = vm.MatchElement(peak.CurrentWavelength);
-                    double intensity = SpectrometerLogic.GetIntensityAtWavelength(data, peak.CurrentWavelength);
-                    vm.PushData(name, intensity);
+                    double currentIntensity = SpectrometerLogic.GetIntensityAtWavelength(data, targetWl);
+                    vm.AddDataToScan(currentIntensity);
                 }
-                */
-
-                // 2. 将采集到的全谱数据直接交给 VM 处理提取强度（空方法占位）
-                vm.ExtractIntensityFromFullSpectrum(data.Wavelengths, data.Intensities);
-
-                SpecPlot.Plot.Axes.AutoScale();
-                SpecPlot.Refresh();
-
-                // 3. 渲染趋势图 (不再在全谱回调中渲染，已分离到 RenderTrendPlot)
+            }
         }
 
         private void RenderTrendPlot()

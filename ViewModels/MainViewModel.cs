@@ -66,7 +66,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         public SampleSequenceViewModel SampleSequenceVM { get; }
 
         // <summary> 获取测样分析业务视图模型。 </summary>
-        public AnalysisWorkstationViewModel AnalysisWorkstationVM { get; }
+        // AnalysisWorkstationVM is removed as we now use SampleMeasurementVM directly
         // <summary> 获取数据处理业务视图模型。 </summary>
         public DataProcessingViewModel DataProcessingVM { get; }
         
@@ -95,7 +95,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// 接收由 App.xaml.cs 构建的单例服务与视图模型实例。
         /// </summary>
         public MainViewModel(ControlPanelViewModel controlPanelVM, SettingsViewModel settingsVM, TimeSeriesViewModel timeSeriesVM, ElementConfigViewModel elementConfigVM, SampleSequenceViewModel sampleSequenceVM, SampleMeasurementViewModel sampleMeasurementVM, 
-            AnalysisWorkstationViewModel analysisWorkstationVM, DataProcessingViewModel dataProcessingVM, HelpViewModel helpVM, HighVoltageService hvService, JsonConfigService configService, ProtocolService protocolService)
+            DataProcessingViewModel dataProcessingVM, HelpViewModel helpVM, HighVoltageService hvService, JsonConfigService configService, ProtocolService protocolService)
         {
             ControlPanelVM = controlPanelVM;
             SettingsVM = settingsVM;
@@ -103,7 +103,6 @@ namespace GD_ControlCenter_WPF.ViewModels
             ElementConfigVM = elementConfigVM;
             SampleSequenceVM = sampleSequenceVM;
             SampleMeasurementVM = sampleMeasurementVM;
-            AnalysisWorkstationVM = analysisWorkstationVM;
             DataProcessingVM = dataProcessingVM;
             HelpVM = helpVM;
 
@@ -116,7 +115,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             AllPages.Add(TimeSeriesVM);
             AllPages.Add(ElementConfigVM);
             AllPages.Add(SampleSequenceVM);
-            AllPages.Add(AnalysisWorkstationVM);
+            AllPages.Add(SampleMeasurementVM);
             AllPages.Add(DataProcessingVM);
             AllPages.Add(SettingsVM);
             AllPages.Add(HelpVM);
@@ -129,7 +128,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             {
                 if (m.Value == "AnalysisWorkstation")
                 {
-                    CurrentPage = AnalysisWorkstationVM;
+                    CurrentPage = SampleMeasurementVM;
                 }
             });
         }
