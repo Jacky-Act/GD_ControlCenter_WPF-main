@@ -85,9 +85,18 @@ namespace GD_ControlCenter_WPF.Views.Pages
         private bool _isBoxZooming = false;
 
         /// <summary>
-        /// 关联的视图模型强引用缓存。
-        /// </summary>
         private ControlPanelViewModel? _vm;
+
+        // --- 零分配渲染缓存 ---
+        private ScottPlot.Plottables.Scatter? _livePlot;
+        private double[]? _cachedWavelengths;
+        private double[]? _cachedIntensities;
+        
+        private ScottPlot.Plottables.Scatter? _refPlot;
+        private SpectralData? _lastRenderedRefData;
+
+        private List<ScottPlot.Plottables.VerticalLine> _peakLines = new();
+        private List<ScottPlot.Plottables.Text> _peakTexts = new();
 
         #endregion
 
@@ -323,7 +332,12 @@ namespace GD_ControlCenter_WPF.Views.Pages
         {
             if ((DateTime.Now - _lastRenderTime).TotalMilliseconds < 33) return;
             _lastRenderTime = DateTime.Now;
-            Dispatcher.BeginInvoke(new Action(() => RenderPlot(data)));
+            
+            Dispatcher.BeginInvoke(new Action(() => 
+            {
+                if (!this.IsVisible) return;
+                RenderPlot(data);
+            }));
         }
 
         /// <summary>
@@ -331,26 +345,60 @@ namespace GD_ControlCenter_WPF.Views.Pages
         /// </summary>
         private void RenderPlot(SpectralData? liveData)
         {
-            SpecPlot.Plot.Clear();
-
             // 底层：参考波形 (红色虚线)
             if (_cachedReferenceData != null)
             {
-                var refPlot = SpecPlot.Plot.Add.Scatter(_cachedReferenceData.Wavelengths, _cachedReferenceData.Intensities);
-                refPlot.MarkerSize = 0; refPlot.LineWidth = 1.0f; refPlot.Color = ScottPlot.Color.FromHex("#F44336");
+                if (_refPlot == null || _cachedReferenceData != _lastRenderedRefData)
+                {
+                    if (_refPlot != null) SpecPlot.Plot.Remove(_refPlot);
+                    _refPlot = SpecPlot.Plot.Add.Scatter(_cachedReferenceData.Wavelengths, _cachedReferenceData.Intensities);
+                    _refPlot.MarkerSize = 0; _refPlot.LineWidth = 1.0f; _refPlot.Color = ScottPlot.Color.FromHex("#F44336");
+                    _lastRenderedRefData = _cachedReferenceData;
+                }
+            }
+            else
+            {
+                if (_refPlot != null) { SpecPlot.Plot.Remove(_refPlot); _refPlot = null; _lastRenderedRefData = null; }
             }
 
             // 顶层：实时波形 (紫色实线)
             if (liveData?.Wavelengths != null && liveData.Wavelengths.Length > 0)
             {
                 _currentData = liveData;
-                var livePlot = SpecPlot.Plot.Add.Scatter(liveData.Wavelengths, liveData.Intensities);
-                livePlot.MarkerSize = 0; livePlot.LineWidth = 1.5f; livePlot.Color = ScottPlot.Color.FromHex(_primaryColorHex);
+                int len = liveData.Wavelengths.Length;
+
+                if (_livePlot == null || _cachedWavelengths == null || _cachedWavelengths.Length != len)
+                {
+                    if (_livePlot != null) SpecPlot.Plot.Remove(_livePlot);
+
+                    _cachedWavelengths = new double[len];
+                    _cachedIntensities = new double[len];
+                    Array.Copy(liveData.Wavelengths, _cachedWavelengths, len);
+                    Array.Copy(liveData.Intensities, _cachedIntensities, len);
+
+                    _livePlot = SpecPlot.Plot.Add.Scatter(_cachedWavelengths, _cachedIntensities);
+                    _livePlot.MarkerSize = 0; _livePlot.LineWidth = 1.5f; _livePlot.Color = ScottPlot.Color.FromHex(_primaryColorHex);
+                }
+                else
+                {
+                    // 零分配原位拷贝
+                    Array.Copy(liveData.Wavelengths, _cachedWavelengths, len);
+                    Array.Copy(liveData.Intensities, _cachedIntensities, len);
+                }
 
                 HandleScalingLogic(liveData);
 
                 // 标注层：寻峰垂直线
                 DrawTrackedPeaks(SpecPlot.Plot.Axes.GetLimits().Top);
+            }
+            else
+            {
+                if (_livePlot != null) { SpecPlot.Plot.Remove(_livePlot); _livePlot = null; }
+                
+                // 清理可能遗留的峰线
+                foreach (var line in _peakLines) SpecPlot.Plot.Remove(line);
+                foreach (var txt in _peakTexts) SpecPlot.Plot.Remove(txt);
+                _peakLines.Clear(); _peakTexts.Clear();
             }
 
             SpecPlot.Refresh();
@@ -391,16 +439,23 @@ namespace GD_ControlCenter_WPF.Views.Pages
         /// </summary>
         private void DrawTrackedPeaks(double yAxisMax)
         {
+            foreach (var line in _peakLines) SpecPlot.Plot.Remove(line);
+            foreach (var txt in _peakTexts) SpecPlot.Plot.Remove(txt);
+            _peakLines.Clear();
+            _peakTexts.Clear();
+
             foreach (var peak in _peakTrackingService.TrackedPeaks)
             {
                 var vLine = SpecPlot.Plot.Add.VerticalLine(peak.CurrentWavelength);
                 vLine.Color = ScottPlot.Color.FromHex("#F44336");
                 vLine.LineWidth = 1.0f;
+                _peakLines.Add(vLine);
 
                 var txt = SpecPlot.Plot.Add.Text($"X: {peak.CurrentWavelength:F2}\nY: {peak.CurrentIntensity:F0}", peak.CurrentWavelength, yAxisMax);
                 txt.LabelFontColor = ScottPlot.Color.FromHex("#F44336");
                 txt.LabelFontSize = 14; txt.LabelBold = true;
                 txt.LabelAlignment = ScottPlot.Alignment.UpperCenter;
+                _peakTexts.Add(txt);
             }
         }
 

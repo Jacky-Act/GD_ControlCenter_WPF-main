@@ -15,6 +15,11 @@ namespace GD_ControlCenter_WPF.Views.Pages
         private double _lastMouseX = 0; 
         private DateTime _lastRenderTime = DateTime.MinValue;
 
+        // --- 零分配渲染缓存 ---
+        private ScottPlot.Plottables.Scatter? _livePlot;
+        private double[]? _cachedWavelengths;
+        private double[]? _cachedIntensities;
+
         public SampleMeasurementView()
         {
             InitializeComponent();
@@ -80,7 +85,11 @@ namespace GD_ControlCenter_WPF.Views.Pages
             if ((DateTime.Now - _lastRenderTime).TotalMilliseconds < 33) return;
             _lastRenderTime = DateTime.Now;
             
-            Dispatcher.BeginInvoke(new Action(() => RenderPlots(data)));
+            Dispatcher.BeginInvoke(new Action(() => 
+            {
+                if (!this.IsVisible) return;
+                RenderPlots(data);
+            }));
         }
 
         private void RenderPlots(SpectralData data)
@@ -89,11 +98,28 @@ namespace GD_ControlCenter_WPF.Views.Pages
 
             if (this.DataContext is not SampleMeasurementViewModel vm) return;
 
-            // 1. 渲染全谱与追踪红线
-            SpecPlot.Plot.Clear();
-                SpecPlot.Plot.Add.Scatter(data.Wavelengths, data.Intensities).MarkerSize = 0;
+            // 1. 渲染全谱
+            int len = data.Wavelengths.Length;
+            if (_livePlot == null || _cachedWavelengths == null || _cachedWavelengths.Length != len)
+            {
+                if (_livePlot != null) SpecPlot.Plot.Remove(_livePlot);
 
-                /*
+                _cachedWavelengths = new double[len];
+                _cachedIntensities = new double[len];
+                Array.Copy(data.Wavelengths, _cachedWavelengths, len);
+                Array.Copy(data.Intensities, _cachedIntensities, len);
+
+                _livePlot = SpecPlot.Plot.Add.Scatter(_cachedWavelengths, _cachedIntensities);
+                _livePlot.MarkerSize = 0;
+            }
+            else
+            {
+                // 零分配原位拷贝
+                Array.Copy(data.Wavelengths, _cachedWavelengths, len);
+                Array.Copy(data.Intensities, _cachedIntensities, len);
+            }
+
+            /*
                 // 【已断开寻峰匹配与推送逻辑】
                 foreach (var peak in vm.PeakTracker.TrackedPeaks)
                 {
