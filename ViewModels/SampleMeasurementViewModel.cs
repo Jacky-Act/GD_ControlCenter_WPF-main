@@ -627,6 +627,9 @@ namespace GD_ControlCenter_WPF.ViewModels
                                     targetRow.Reps[r].Intensity = Math.Round(realIntensity, 0);
                                 }
                             }
+                            
+                            // 主动通知视图层重绘趋势图，避免等待下一帧导致的延迟
+                            CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new GD_ControlCenter_WPF.Models.Messages.TrendPlotRefreshMessage());
                         }
 
                         // 间隔等待 (非最后一次)

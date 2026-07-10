@@ -126,4 +126,9 @@ namespace GD_ControlCenter_WPF.Models.Messages
     public class ClearSequenceRequestMessage
     {
     }
-}
+
+    // 新增：通知 View 层立即重绘趋势图的消息
+    public class TrendPlotRefreshMessage
+    {
+    }
+}
