@@ -36,16 +36,16 @@
                 <pages:SampleMeasurementView />
             </DataTemplate>
 
-            <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
-                <pages:SettingsView />
-            </DataTemplate>
-
             <DataTemplate DataType="{x:Type vm:DataProcessingViewModel}">
                 <pages:DataProcessingView />
             </DataTemplate>
 
             <DataTemplate DataType="{x:Type vm:HelpViewModel}">
                 <pages:HelpView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+                <pages:SettingsView />
             </DataTemplate>
 
             <helpers:BatteryWidthConverter x:Key="BatteryWidthConverter"/>
