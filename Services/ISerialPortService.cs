@@ -1,4 +1,4 @@
-﻿/*
+/*
  * 文件名: ISerialPortService.cs
  * 描述: 定义串口通讯服务的标准行为契约。
  * 涵盖了设备生命周期管理（打开/关闭/自动连接）、可用端口探测、以及基于优先级的异步数据发送队列机制。
@@ -33,6 +33,12 @@ namespace GD_ControlCenter_WPF.Services
         /// 当串口连接状态发生变更（开启或断开）时触发的通知事件。
         /// </summary>
         event Action<bool>? ConnectionStatusChanged;
+
+        /// <summary>
+        /// 当串口接收到原始字节流时触发的事件。
+        /// 用于将底层收到的字节直接推送给协议解析层，避免中间对象的过度分配。
+        /// </summary>
+        event Action<byte[]>? DataReceived;
 
         /// <summary>
         /// 获取当前串口的开启状态。

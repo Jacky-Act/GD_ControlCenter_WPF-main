@@ -23,19 +23,20 @@ namespace GD_ControlCenter_WPF.Services
         private readonly List<byte> _buffer = new();
 
         /// <summary>
-        /// 初始化协议解析服务，并订阅串口原始数据消息。
+        /// 初始化协议解析服务，并订阅串口原始数据事件。
         /// </summary>
-        public ProtocolService()
+        /// <param name="serialPortService">通过依赖注入获取的串口服务实例</param>
+        public ProtocolService(ISerialPortService serialPortService)
         {
-            // 注册消息订阅：接收来自串口服务的原始 Hex 数据
-            WeakReferenceMessenger.Default.Register<HexDataMessage>(this, (r, m) =>
+            // 订阅底层的直接数据回调，不再使用 WeakReferenceMessenger.Default.Register<HexDataMessage>
+            serialPortService.DataReceived += (data) =>
             {
                 // 锁定缓冲区，防止多线程环境下数据竞争导致的索引异常
                 lock (_buffer)
                 {
-                    OnDataReceived(m.Value);
+                    OnDataReceived(data);
                 }
-            });
+            };
         }
 
         /// <summary>

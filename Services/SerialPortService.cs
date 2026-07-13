@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
 using System.Collections.Concurrent;
 using System.IO.Ports;
@@ -48,6 +48,11 @@ namespace GD_ControlCenter_WPF.Services
         /// 连接状态变更事件。
         /// </summary>
         public event Action<bool>? ConnectionStatusChanged;
+
+        /// <summary>
+        /// 当串口接收到原始字节流时触发的事件。
+        /// </summary>
+        public event Action<byte[]>? DataReceived;
 
         /// <summary>
         /// 串口是否处于开启状态。
@@ -259,8 +264,8 @@ namespace GD_ControlCenter_WPF.Services
                 byte[] buffer = new byte[bytesToRead];
                 sp.Read(buffer, 0, bytesToRead);
 
-                // 通过全局消息总线分发原始 Hex 报文，由专门的消息订阅者进行协议解析
-                WeakReferenceMessenger.Default.Send(new HexDataMessage(buffer));
+                // 通过委托事件直接分发原始报文，替代低效的全局消息总线
+                DataReceived?.Invoke(buffer);
             }
             catch { /* 捕捉接收过程中可能出现的设备意外拔出异常 */ }
         }
