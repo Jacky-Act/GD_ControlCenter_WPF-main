@@ -69,24 +69,62 @@ namespace GD_ControlCenter_WPF.Models.Platform3D
         public bool HasReceivedZZero { get; set; }
 
         /// <summary>
-        /// 各轴零点边界标志（Min）
+        /// 独立布尔属性：代替字典消除哈希开销
         /// </summary>
-        public Dictionary<AxisType, bool> IsAtMin { get; set; } = new()
+        public bool IsXAtMin { get; set; } = false;
+        public bool IsYAtMin { get; set; } = false;
+        public bool IsZAtMin { get; set; } = false;
+        public bool IsXAtMax { get; set; } = false;
+        public bool IsYAtMax { get; set; } = false;
+        public bool IsZAtMax { get; set; } = false;
+
+        /// <summary>
+        /// 辅助读取 Min 限位
+        /// </summary>
+        public bool GetIsAtMin(AxisType axis) => axis switch
         {
-            { AxisType.X, false },
-            { AxisType.Y, false },
-            { AxisType.Z, false }
+            AxisType.X => IsXAtMin,
+            AxisType.Y => IsYAtMin,
+            AxisType.Z => IsZAtMin,
+            _ => false
         };
 
         /// <summary>
-        /// 各轴最大值边界标志（Max）
+        /// 辅助设置 Min 限位
         /// </summary>
-        public Dictionary<AxisType, bool> IsAtMax { get; set; } = new()
+        public void SetIsAtMin(AxisType axis, bool value)
         {
-            { AxisType.X, false },
-            { AxisType.Y, false },
-            { AxisType.Z, false }
+            switch (axis)
+            {
+                case AxisType.X: IsXAtMin = value; break;
+                case AxisType.Y: IsYAtMin = value; break;
+                case AxisType.Z: IsZAtMin = value; break;
+            }
+        }
+
+        /// <summary>
+        /// 辅助读取 Max 限位
+        /// </summary>
+        public bool GetIsAtMax(AxisType axis) => axis switch
+        {
+            AxisType.X => IsXAtMax,
+            AxisType.Y => IsYAtMax,
+            AxisType.Z => IsZAtMax,
+            _ => false
         };
+
+        /// <summary>
+        /// 辅助设置 Max 限位
+        /// </summary>
+        public void SetIsAtMax(AxisType axis, bool value)
+        {
+            switch (axis)
+            {
+                case AxisType.X: IsXAtMax = value; break;
+                case AxisType.Y: IsYAtMax = value; break;
+                case AxisType.Z: IsZAtMax = value; break;
+            }
+        }
     }
 
 }

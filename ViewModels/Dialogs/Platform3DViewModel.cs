@@ -248,9 +248,9 @@ namespace GD_ControlCenter_WPF.ViewModels.Dialogs
             int step = (int)Math.Round(StepDistance);
 
             // 软件安全预检 (防止撞击极限位)
-            if (isPositive && _platformService.Status.IsAtMax[targetAxis])
+            if (isPositive && _platformService.Status.GetIsAtMax(targetAxis))
             {
-                CalibrationStatus = $"操作拒绝：{targetAxis} 轴已处于物理极限位。";
+                CalibrationStatus = $"操作拒绝：{targetAxis} 轴已达物理最大限制。";
                 return;
             }
 
@@ -270,9 +270,9 @@ namespace GD_ControlCenter_WPF.ViewModels.Dialogs
                     }
                 }
                 // X/Y 轴，以及不支持负向行程的 2 号机器 Z 轴，走常规零点拦截提示
-                else if (_platformService.Status.IsAtMin[targetAxis])
+                else if (_platformService.Status.GetIsAtMin(targetAxis))
                 {
-                    CalibrationStatus = $"操作拒绝：{targetAxis} 轴已处于零点。";
+                    CalibrationStatus = $"操作拒绝：{targetAxis} 轴已达物理最小限制 (0点)。";
                     return;
                 }
             }

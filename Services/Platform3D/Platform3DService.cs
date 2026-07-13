@@ -164,8 +164,8 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
         public void HandleBoundarySignal(AxisType axis, bool isZeroPosition)
         {
             // 防抖：若状态已一致，则忽略重复报文
-            if (isZeroPosition && Status.IsAtMin[axis]) return;
-            if (!isZeroPosition && Status.IsAtMax[axis]) return;
+            if (isZeroPosition && Status.GetIsAtMin(axis)) return;
+            if (!isZeroPosition && Status.GetIsAtMax(axis)) return;
 
             // 通过取消令牌瞬间中止 MoveAxisAsync 中的 Task.Delay，防止坐标错误累加
             _currentMoveCts?.Cancel();
@@ -174,8 +174,8 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
             if (isZeroPosition)
             {
                 CurrentPosition[axis] = 0;
-                Status.IsAtMin[axis] = true;
-                Status.IsAtMax[axis] = false;
+                Status.SetIsAtMin(axis, true);
+                Status.SetIsAtMax(axis, false);
 
                 // 新增：一旦收到 Z 轴零点信号，激活负向软限位逻辑
                 if (axis == AxisType.Z)
@@ -186,8 +186,8 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
             else
             {
                 CurrentPosition[axis] = GetMaxStep(axis);
-                Status.IsAtMin[axis] = false;
-                Status.IsAtMax[axis] = true;
+                Status.SetIsAtMin(axis, false);
+                Status.SetIsAtMax(axis, true);
             }
 
             // 后台异步保存修正后的坐标与状态
@@ -229,12 +229,12 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
                 else
                 {
                     // X/Y 轴，以及不支持负向行程的 2 号机器 Z 轴，使用常规零点限位拦截
-                    if (Status.IsAtMin[axis]) return false;
+                    if (Status.GetIsAtMin(axis)) return false;
                 }
             }
 
             // 正向最大值硬限位拦截
-            if (Status.IsAtMax[axis] && isPositive) return false;
+            if (Status.GetIsAtMax(axis) && isPositive) return false;
 
             return true;
         }
@@ -248,8 +248,8 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
             CurrentPosition[axis] += delta;
 
             // 既然已经移动了，说明暂时脱离了相反方向的物理限位
-            if (isPositive) Status.IsAtMin[axis] = false;
-            else Status.IsAtMax[axis] = false;
+            if (isPositive) Status.SetIsAtMin(axis, false);
+            else Status.SetIsAtMax(axis, false);
         }
 
         /// <summary>
@@ -289,25 +289,19 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
             CurrentPosition.Z = config.Platform3D.Z;
 
             // 恢复限位触发记忆
-            if (config.Platform3D.IsAtMin != null)
-            {
-                Status.IsAtMin[AxisType.X] = config.Platform3D.IsAtMin.GetValueOrDefault("X", false);
-                Status.IsAtMin[AxisType.Y] = config.Platform3D.IsAtMin.GetValueOrDefault("Y", false);
-                Status.IsAtMin[AxisType.Z] = config.Platform3D.IsAtMin.GetValueOrDefault("Z", false);
+            Status.IsXAtMin = config.Platform3D.IsXAtMin;
+            Status.IsYAtMin = config.Platform3D.IsYAtMin;
+            Status.IsZAtMin = config.Platform3D.IsZAtMin;
 
-                // 新增：如果历史状态记录 Z 轴在零点，则认为零点已确立
-                if (Status.IsAtMin[AxisType.Z])
-                {
-                    Status.HasReceivedZZero = true;
-                }
+            // 新增：如果历史状态记录 Z 轴在零点，则认为零点已确立
+            if (Status.IsZAtMin)
+            {
+                Status.HasReceivedZZero = true;
             }
 
-            if (config.Platform3D.IsAtMax != null)
-            {
-                Status.IsAtMax[AxisType.X] = config.Platform3D.IsAtMax.GetValueOrDefault("X", false);
-                Status.IsAtMax[AxisType.Y] = config.Platform3D.IsAtMax.GetValueOrDefault("Y", false);
-                Status.IsAtMax[AxisType.Z] = config.Platform3D.IsAtMax.GetValueOrDefault("Z", false);
-            }
+            Status.IsXAtMax = config.Platform3D.IsXAtMax;
+            Status.IsYAtMax = config.Platform3D.IsYAtMax;
+            Status.IsZAtMax = config.Platform3D.IsZAtMax;
         }
 
         /// <summary>
@@ -324,13 +318,13 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
             config.Platform3D.Y = CurrentPosition.Y;
             config.Platform3D.Z = CurrentPosition.Z;
 
-            config.Platform3D.IsAtMin["X"] = Status.IsAtMin[AxisType.X];
-            config.Platform3D.IsAtMin["Y"] = Status.IsAtMin[AxisType.Y];
-            config.Platform3D.IsAtMin["Z"] = Status.IsAtMin[AxisType.Z];
+            config.Platform3D.IsXAtMin = Status.IsXAtMin;
+            config.Platform3D.IsYAtMin = Status.IsYAtMin;
+            config.Platform3D.IsZAtMin = Status.IsZAtMin;
 
-            config.Platform3D.IsAtMax["X"] = Status.IsAtMax[AxisType.X];
-            config.Platform3D.IsAtMax["Y"] = Status.IsAtMax[AxisType.Y];
-            config.Platform3D.IsAtMax["Z"] = Status.IsAtMax[AxisType.Z];
+            config.Platform3D.IsXAtMax = Status.IsXAtMax;
+            config.Platform3D.IsYAtMax = Status.IsYAtMax;
+            config.Platform3D.IsZAtMax = Status.IsZAtMax;
 
             // 异步执行配置文件的实体化保存
             _ = Task.Run(() => _jsonConfigService.Save(config));

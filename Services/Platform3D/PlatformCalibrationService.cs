@@ -109,8 +109,8 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
             {
                 foreach (var axis in axesToHome)
                 {
-                    // 若已在零点位置则跳过，防止电机堵转
-                    if (_platformService.Status.IsAtMin[axis]) continue;
+                    // 若某个轴当前已处于限位开关触发状态，则跳过它的归零
+                    if (_platformService.Status.GetIsAtMin(axis)) continue;
 
                     // 设置 30 秒单轴强制超时保护
                     using var axisTimeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -146,7 +146,7 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
         public async Task StartAxisCalibrationAsync(AxisType axis, double targetWl, double tolerance, CancellationToken ct = default)
         {
             // 前置安全检查
-            if (!_platformService.Status.IsAtMin[axis])
+            if (!_platformService.Status.GetIsAtMin(axis))
                 throw new InvalidOperationException($"{axis} 轴未处于零点位，请先执行复位归零。");
 
             var activeSpectrometer = SpectrometerManager.Instance.Devices.FirstOrDefault();

@@ -79,20 +79,34 @@ namespace GD_ControlCenter_WPF.Models
         public int MaxValidStep { get; set; } = 16500;
 
         /// <summary>
-        /// 各轴零点限位 (Min) 的触发记忆。
+        /// X 轴零点限位 (Min) 的触发记忆。
         /// </summary>
-        public Dictionary<string, bool> IsAtMin { get; set; } = new()
-        {
-            { "X", false }, { "Y", false }, { "Z", false }
-        };
+        public bool IsXAtMin { get; set; } = false;
 
         /// <summary>
-        /// 各轴最大值限位 (Max) 的触发记忆。
+        /// Y 轴零点限位 (Min) 的触发记忆。
         /// </summary>
-        public Dictionary<string, bool> IsAtMax { get; set; } = new()
-        {
-            { "X", false }, { "Y", false }, { "Z", false }
-        };
+        public bool IsYAtMin { get; set; } = false;
+
+        /// <summary>
+        /// Z 轴零点限位 (Min) 的触发记忆。
+        /// </summary>
+        public bool IsZAtMin { get; set; } = false;
+
+        /// <summary>
+        /// X 轴最大物理行程 (Max) 的触发记忆。
+        /// </summary>
+        public bool IsXAtMax { get; set; } = false;
+
+        /// <summary>
+        /// Y 轴最大物理行程 (Max) 的触发记忆。
+        /// </summary>
+        public bool IsYAtMax { get; set; } = false;
+
+        /// <summary>
+        /// Z 轴最大物理行程 (Max) 的触发记忆。
+        /// </summary>
+        public bool IsZAtMax { get; set; } = false;
 
         /// <summary>
         /// 用户设定的默认手动移动步距。
