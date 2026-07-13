@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
 using GD_ControlCenter_WPF.Models.Protocols;
@@ -69,8 +69,8 @@ namespace GD_ControlCenter_WPF.Services
             _pollingTimer.Elapsed += OnPollingTimerElapsed;
             _pollingTimer.AutoReset = true;
 
-            // 订阅由 ProtocolService 经过 CRC 校验分发的 13 字节标准回传消息。
-            WeakReferenceMessenger.Default.Register<ControlResponseMessage>(this, (r, m) =>
+            // 订阅由 ProtocolService 经过 CRC 校验分发的高压回传消息。
+            WeakReferenceMessenger.Default.Register<HighVoltageResponseMessage>(this, (r, m) =>
             {
                 // 收到消息后立即进入解析逻辑。
                 ParseResponse(m.Value);
@@ -203,7 +203,7 @@ namespace GD_ControlCenter_WPF.Services
         public void Dispose()
         {
             _pollingTimer?.Dispose();
-            WeakReferenceMessenger.Default.Unregister<ControlResponseMessage>(this);
+            WeakReferenceMessenger.Default.Unregister<HighVoltageResponseMessage>(this);
         }
     }
 }

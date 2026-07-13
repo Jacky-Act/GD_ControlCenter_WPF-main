@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Helpers;
 using GD_ControlCenter_WPF.Models.Messages;
 using GD_ControlCenter_WPF.Models.Protocols;
@@ -96,10 +96,10 @@ namespace GD_ControlCenter_WPF.Services
                                     // 转发至电池状态监控模块
                                     WeakReferenceMessenger.Default.Send(new BatteryFrameMessage(frame));
                                 }
-                                else
+                                else if (code == (byte)FunctionCode.ReturnPowerInfo || code == (byte)FunctionCode.HighVoltage)
                                 {
-                                    // 转发至通用硬件响应处理模块（如高压电源、泵组回执）
-                                    WeakReferenceMessenger.Default.Send(new ControlResponseMessage(frame));
+                                    // 转发至高压电源专用响应处理模块
+                                    WeakReferenceMessenger.Default.Send(new HighVoltageResponseMessage(frame));
                                 }
 
                                 _buffer.RemoveRange(0, ControlProtocol.CommandTotalLength);

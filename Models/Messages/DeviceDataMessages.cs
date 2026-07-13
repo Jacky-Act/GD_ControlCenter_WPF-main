@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging.Messages;
+using CommunityToolkit.Mvvm.Messaging.Messages;
 
 /*
  * 文件名: DeviceDataMessages.cs
@@ -27,11 +27,11 @@ namespace GD_ControlCenter_WPF.Models.Messages
     }
 
     /// <summary>
-    /// 控制板标准响应消息。
-    /// 承载 13 字节的标准指令回执，用于确认下位机向上位机的回传指令。
+    /// 高压电源响应消息。
+    /// 承载 13 字节的标准指令回执，专用于高压电源相关的回传。
     /// </summary>
-    public class ControlResponseMessage : ValueChangedMessage<byte[]>
+    public class HighVoltageResponseMessage : ValueChangedMessage<byte[]>
     {
-        public ControlResponseMessage(byte[] value) : base(value) { }
+        public HighVoltageResponseMessage(byte[] value) : base(value) { }
     }
 }
