@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models;
@@ -75,17 +75,17 @@ namespace GD_ControlCenter_WPF.ViewModels.Dialogs
         /// <summary>
         /// X 轴物理步进最大限制。
         /// </summary>
-        [ObservableProperty] private double _maxX = PlatformLimits.MaxStepX;
+        [ObservableProperty] private double _maxX;
 
         /// <summary>
         /// Y 轴物理步进最大限制。
         /// </summary>
-        [ObservableProperty] private double _maxY = PlatformLimits.MaxStepY;
+        [ObservableProperty] private double _maxY;
 
         /// <summary>
         /// Z 轴物理步进最大限制。
         /// </summary>
-        [ObservableProperty] private double _maxZ = PlatformLimits.MaxStepZ;
+        [ObservableProperty] private double _maxZ;
 
         #endregion
 
@@ -146,8 +146,8 @@ namespace GD_ControlCenter_WPF.ViewModels.Dialogs
         /// <summary>
         /// 构造 Platform3DViewModel。
         /// </summary>
-        public Platform3DViewModel(IPlatform3DService platformService,PlatformCalibrationService calibrationService,JsonConfigService jsonConfigService,
-                PeakTrackingService peakTrackingService,Action closeAction)
+        public Platform3DViewModel(IPlatform3DService platformService, PlatformCalibrationService calibrationService, JsonConfigService jsonConfigService,
+                PeakTrackingService peakTrackingService, Action closeAction)
         {
             _platformService = platformService;
             _calibrationService = calibrationService;
@@ -161,6 +161,11 @@ namespace GD_ControlCenter_WPF.ViewModels.Dialogs
             // 恢复上次保存的步长设置
             var config = _jsonConfigService?.Load();
             StepDistance = config?.Platform3D?.DefaultStepDistance ?? 100.0;
+            
+            var platformConfig = config?.Platform3D ?? new Platform3DConfig();
+            _maxX = platformConfig.MaxStepX;
+            _maxY = platformConfig.MaxStepY;
+            _maxZ = platformConfig.MaxStepZ;
 
             // 初始同步坐标
             SyncPositionFromService();
@@ -252,13 +257,14 @@ namespace GD_ControlCenter_WPF.ViewModels.Dialogs
             if (!isPositive)
             {
                 // 仅在 MinStepZ 为负数（1号机器）时执行特殊 Z 轴负向范围判断
-                if (targetAxis == AxisType.Z && PlatformLimits.MinStepZ < 0)
+                var platformConfig = _jsonConfigService.Load().Platform3D ?? new Platform3DConfig();
+                if (targetAxis == AxisType.Z && platformConfig.MinStepZ < 0)
                 {
                     if (_platformService.Status.HasReceivedZZero)
                     {
-                        if (_platformService.CurrentPosition.Z - step < PlatformLimits.MinStepZ)
+                        if (_platformService.CurrentPosition.Z - step < platformConfig.MinStepZ)
                         {
-                            CalibrationStatus = $"操作拒绝：Z 轴超过最低软限位 ({PlatformLimits.MinStepZ})。";
+                            CalibrationStatus = $"操作拒绝：Z 轴超过最低软限位 ({platformConfig.MinStepZ})。";
                             return;
                         }
                     }

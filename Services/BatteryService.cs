@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models.Messages;
 using GD_ControlCenter_WPF.Models.Protocols;
@@ -65,22 +65,25 @@ namespace GD_ControlCenter_WPF.Services
         public bool IsCharging { get; private set; }
 
         /// <summary>
+        /// 协议解析服务引用。
+        /// </summary>
+        private readonly ProtocolService _protocolService;
+
+        /// <summary>
         /// 初始化电池服务并注册消息订阅。
         /// </summary>
         /// <param name="serialPortService">注入的串口通讯服务。</param>
-        public BatteryService(ISerialPortService serialPortService)
+        public BatteryService(ISerialPortService serialPortService, ProtocolService protocolService)
         {
             _serialPortService = serialPortService;
+            _protocolService = protocolService;
 
             // 初始化轮询定时器：设为 3s 间隔（快查模式）
             _pollingTimer = new System.Timers.Timer(3000);
             _pollingTimer.Elapsed += OnPollingTimerElapsed;
             _pollingTimer.AutoReset = true;
 
-            WeakReferenceMessenger.Default.Register<BatteryFrameMessage>(this, (r, m) =>
-            {
-                ParseBatteryData(m.Value);
-            });
+            _protocolService.BatteryFrameReceived += ParseBatteryData;
         }
 
         /// <summary>
@@ -186,12 +189,12 @@ namespace GD_ControlCenter_WPF.Services
             }
         }
         /// <summary>
-        /// 释放资源，注销消息订阅并销毁定时器。
+        /// 释放资源，注销事件订阅并销毁定时器。
         /// </summary>
         public void Dispose()
         {
             _pollingTimer?.Dispose();
-            WeakReferenceMessenger.Default.Unregister<BatteryFrameMessage>(this);
+            _protocolService.BatteryFrameReceived -= ParseBatteryData;
         }
     }
 }

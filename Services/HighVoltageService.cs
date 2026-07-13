@@ -57,24 +57,26 @@ namespace GD_ControlCenter_WPF.Services
         public bool IsOnline { get; private set; }
 
         /// <summary>
+        /// 协议解析服务引用。
+        /// </summary>
+        private readonly ProtocolService _protocolService;
+
+        /// <summary>
         /// 构造函数：初始化串口引用、配置定时器并注册消息订阅。
         /// </summary>
         /// <param name="serialPortService">通过依赖注入获取的串口服务实例。</param>
-        public HighVoltageService(ISerialPortService serialPortService)
+        public HighVoltageService(ISerialPortService serialPortService, ProtocolService protocolService)
         {
             _serialPortService = serialPortService;
+            _protocolService = protocolService;
 
             // 初始化轮询定时器，设定为 1000 毫秒执行一次查询。
             _pollingTimer = new System.Timers.Timer(1000);
             _pollingTimer.Elapsed += OnPollingTimerElapsed;
             _pollingTimer.AutoReset = true;
 
-            // 订阅由 ProtocolService 经过 CRC 校验分发的高压回传消息。
-            WeakReferenceMessenger.Default.Register<HighVoltageResponseMessage>(this, (r, m) =>
-            {
-                // 收到消息后立即进入解析逻辑。
-                ParseResponse(m.Value);
-            });
+            // 订阅由 ProtocolService 经过 CRC 校验分发的高压回传原生事件。
+            _protocolService.HighVoltageFrameReceived += ParseResponse;
         }
 
         /// <summary>
@@ -198,12 +200,12 @@ namespace GD_ControlCenter_WPF.Services
         }
 
         /// <summary>
-        /// 释放资源。注销消息中心的所有订阅并销毁定时器。
+        /// 释放资源。注销事件订阅并销毁定时器。
         /// </summary>
         public void Dispose()
         {
             _pollingTimer?.Dispose();
-            WeakReferenceMessenger.Default.Unregister<HighVoltageResponseMessage>(this);
+            _protocolService.HighVoltageFrameReceived -= ParseResponse;
         }
     }
 }

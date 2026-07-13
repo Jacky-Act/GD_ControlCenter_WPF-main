@@ -1,4 +1,5 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging;
+using GD_ControlCenter_WPF.Models;
 using GD_ControlCenter_WPF.Models.Messages;
 using GD_ControlCenter_WPF.Models.Platform3D;
 using GD_ControlCenter_WPF.Models.Spectrometer;
@@ -31,6 +32,11 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
         /// 全局特征峰追踪服务，用于在校准时提供实时的峰值强度反馈。
         /// </summary>
         private readonly PeakTrackingService _peakTrackingService;
+
+        /// <summary>
+        /// JSON 配置服务，用于读取软限位参数。
+        /// </summary>
+        private readonly JsonConfigService _jsonConfigService;
 
         /// <summary>
         /// 扫描过程计时器，用于计算最高点出现的时间节点。
@@ -74,10 +80,11 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
         /// <summary>
         /// 构造函数：注入平台与光谱服务，并注册全局光谱数据监听。
         /// </summary>
-        public PlatformCalibrationService(IPlatform3DService platformService, PeakTrackingService peakTrackingService)
+        public PlatformCalibrationService(IPlatform3DService platformService, PeakTrackingService peakTrackingService, JsonConfigService jsonConfigService)
         {
             _platformService = platformService ?? throw new ArgumentNullException(nameof(platformService));
             _peakTrackingService = peakTrackingService ?? throw new ArgumentNullException(nameof(peakTrackingService));
+            _jsonConfigService = jsonConfigService ?? throw new ArgumentNullException(nameof(jsonConfigService));
 
             // 监听底层光谱数据，用于在扫描过程中实时分析强度
             WeakReferenceMessenger.Default.Register<SpectralDataMessage>(this, (r, m) =>
@@ -110,7 +117,8 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(parentCts, axisTimeoutCts.Token);
 
                     // 下发大幅度负向步进指令，由硬件限位信号执行物理切断
-                    int homeDistance = PlatformLimits.MaxValidStep + 500;
+                    var platformConfig = _jsonConfigService.Load().Platform3D ?? new Platform3DConfig();
+                    int homeDistance = platformConfig.MaxValidStep + 500;
                     await _platformService.MoveAxisAsync(axis, homeDistance, false, linkedCts.Token);
 
                     // 轴间切换缓冲延时
@@ -246,13 +254,17 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
         /// <summary>
         /// 辅助方法：获取物理轴的最大行程限位值。
         /// </summary>
-        private int GetMaxStep(AxisType axis) => axis switch
+        private int GetMaxStep(AxisType axis)
         {
-            AxisType.X => PlatformLimits.MaxStepX,
-            AxisType.Y => PlatformLimits.MaxStepY,
-            AxisType.Z => PlatformLimits.MaxStepZ,
-            _ => 0
-        };
+            var platformConfig = _jsonConfigService.Load().Platform3D ?? new Platform3DConfig();
+            return axis switch
+            {
+                AxisType.X => platformConfig.MaxStepX,
+                AxisType.Y => platformConfig.MaxStepY,
+                AxisType.Z => platformConfig.MaxStepZ,
+                _ => 0
+            };
+        }
 
         #endregion
 

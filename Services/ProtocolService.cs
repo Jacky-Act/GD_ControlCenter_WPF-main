@@ -23,6 +23,21 @@ namespace GD_ControlCenter_WPF.Services
         private readonly List<byte> _buffer = new();
 
         /// <summary>
+        /// 当接收到三维平台 8 字节位置反馈报文时触发。
+        /// </summary>
+        public event Action<byte[]>? PlatformFrameReceived;
+
+        /// <summary>
+        /// 当接收到电池 13 字节状态报文时触发。
+        /// </summary>
+        public event Action<byte[]>? BatteryFrameReceived;
+
+        /// <summary>
+        /// 当接收到高压电源 13 字节状态报文时触发。
+        /// </summary>
+        public event Action<byte[]>? HighVoltageFrameReceived;
+
+        /// <summary>
         /// 初始化协议解析服务，并订阅串口原始数据事件。
         /// </summary>
         /// <param name="serialPortService">通过依赖注入获取的串口服务实例</param>
@@ -67,8 +82,8 @@ namespace GD_ControlCenter_WPF.Services
                         {
                             byte[] frame = _buffer.Take(platformFrameLength).ToArray();
 
-                            // 解析成功，分发三维平台专用消息
-                            WeakReferenceMessenger.Default.Send(new Platform3DMessage(frame));
+                            // 解析成功，分发三维平台专用事件
+                            PlatformFrameReceived?.Invoke(frame);
 
                             // 从缓冲区移除已处理的报文
                             _buffer.RemoveRange(0, platformFrameLength);
@@ -95,12 +110,12 @@ namespace GD_ControlCenter_WPF.Services
                                 if (code == (byte)FunctionCode.Battery)
                                 {
                                     // 转发至电池状态监控模块
-                                    WeakReferenceMessenger.Default.Send(new BatteryFrameMessage(frame));
+                                    BatteryFrameReceived?.Invoke(frame);
                                 }
                                 else if (code == (byte)FunctionCode.ReturnPowerInfo || code == (byte)FunctionCode.HighVoltage)
                                 {
                                     // 转发至高压电源专用响应处理模块
-                                    WeakReferenceMessenger.Default.Send(new HighVoltageResponseMessage(frame));
+                                    HighVoltageFrameReceived?.Invoke(frame);
                                 }
 
                                 _buffer.RemoveRange(0, ControlProtocol.CommandTotalLength);

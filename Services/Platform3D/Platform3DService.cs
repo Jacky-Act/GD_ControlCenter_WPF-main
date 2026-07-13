@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging;
 using GD_ControlCenter_WPF.Models;
 using GD_ControlCenter_WPF.Models.Messages;
 using GD_ControlCenter_WPF.Models.Platform3D;
@@ -31,6 +31,11 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
         private readonly JsonConfigService _jsonConfigService;
 
         /// <summary>
+        /// 协议解析服务引用，用于监听底层平台数据反馈。
+        /// </summary>
+        private readonly ProtocolService _protocolService;
+
+        /// <summary>
         /// 实例内部互斥锁，防止单轴任务并发导致的状态机混乱。
         /// </summary>
         private readonly object _lockObj = new();
@@ -53,19 +58,17 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
         /// <summary>
         /// 构造函数：初始化通讯引用并自动加载历史坐标与限位状态。
         /// </summary>
-        public Platform3DService(ISerialPortService serialPortService, JsonConfigService jsonConfigService)
+        public Platform3DService(ISerialPortService serialPortService, JsonConfigService jsonConfigService, ProtocolService protocolService)
         {
             _serialPortService = serialPortService;
             _jsonConfigService = jsonConfigService;
+            _protocolService = protocolService;
 
             // 启动时优先恢复历史坐标
             LoadPositionInternal();
 
-            // 注册消息监听：接收来自底层 ProtocolService 解析出的 8 字节平台消息
-            WeakReferenceMessenger.Default.Register<Platform3DMessage>(this, (r, m) =>
-            {
-                HandleHardwareResponse(m.Value);
-            });
+            // 直接订阅底层 ProtocolService 分发的 8 字节原生事件
+            _protocolService.PlatformFrameReceived += HandleHardwareResponse;
         }
 
         /// <summary>
@@ -212,11 +215,12 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
             if (!isPositive)
             {
                 // 仅在 MinStepZ 为负数（1号机器）时启用特殊负向软限位拦截
-                if (axis == AxisType.Z && PlatformLimits.MinStepZ < 0)
+                var platformConfig = _jsonConfigService.Load().Platform3D ?? new Platform3DConfig();
+                if (axis == AxisType.Z && platformConfig.MinStepZ < 0)
                 {
                     if (Status.HasReceivedZZero)
                     {
-                        if (CurrentPosition[axis] - step < PlatformLimits.MinStepZ)
+                        if (CurrentPosition[axis] - step < platformConfig.MinStepZ)
                         {
                             return false;
                         }
@@ -249,15 +253,19 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
         }
 
         /// <summary>
-        /// 获取轴对应的硬编码物理最大行程。
+        /// 获取轴对应的物理最大行程（动态从配置加载）。
         /// </summary>
-        private int GetMaxStep(AxisType axis) => axis switch
+        private int GetMaxStep(AxisType axis)
         {
-            AxisType.X => PlatformLimits.MaxStepX,
-            AxisType.Y => PlatformLimits.MaxStepY,
-            AxisType.Z => PlatformLimits.MaxStepZ,
-            _ => 0
-        };
+            var platformConfig = _jsonConfigService.Load().Platform3D ?? new Platform3DConfig();
+            return axis switch
+            {
+                AxisType.X => platformConfig.MaxStepX,
+                AxisType.Y => platformConfig.MaxStepY,
+                AxisType.Z => platformConfig.MaxStepZ,
+                _ => 0
+            };
+        }
 
         /// <summary>
         /// 移动时间估算公式。
@@ -333,8 +341,12 @@ namespace GD_ControlCenter_WPF.Services.Platform3D
         #endregion
 
         /// <summary>
-        /// 销毁服务：注销所有消息订阅。
+        /// 销毁服务：注销所有事件与消息订阅。
         /// </summary>
-        public void Dispose() => WeakReferenceMessenger.Default.UnregisterAll(this);
+        public void Dispose()
+        {
+            _protocolService.PlatformFrameReceived -= HandleHardwareResponse;
+            WeakReferenceMessenger.Default.UnregisterAll(this);
+        }
     }
 }

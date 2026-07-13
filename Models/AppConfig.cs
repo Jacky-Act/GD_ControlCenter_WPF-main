@@ -49,6 +49,36 @@ namespace GD_ControlCenter_WPF.Models
         public int Z { get; set; } = 0;
 
         /// <summary>
+        /// X 轴物理软限位步进最大值。
+        /// </summary>
+        public int MaxStepX { get; set; } = 15500;
+
+        /// <summary>
+        /// Y 轴物理软限位步进最大值。
+        /// </summary>
+        public int MaxStepY { get; set; } = 7600;
+
+        /// <summary>
+        /// Z 轴物理软限位步进最大值。
+        /// </summary>
+        public int MaxStepZ { get; set; } = 4600;
+
+        /// <summary>
+        /// Z 轴物理软限位步进最小值（支持负向零点穿越）。
+        /// </summary>
+        public int MinStepZ { get; set; } = -2000;
+
+        /// <summary>
+        /// 默认最小有效步长。
+        /// </summary>
+        public int MinValidStep { get; set; } = 1;
+
+        /// <summary>
+        /// 默认最大有效步长。
+        /// </summary>
+        public int MaxValidStep { get; set; } = 16500;
+
+        /// <summary>
         /// 各轴零点限位 (Min) 的触发记忆。
         /// </summary>
         public Dictionary<string, bool> IsAtMin { get; set; } = new()
