@@ -143,11 +143,9 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// </summary>
         public void SaveCurrentSettings()
         {
-            var config = new AppConfig
-            {
-                LastHvVoltage = _hvService.Voltage,
-                LastHvCurrent = _hvService.Current
-            };
+            var config = _configService.Load();
+            config.LastHvVoltage = _hvService.Voltage;
+            config.LastHvCurrent = _hvService.Current;
             _configService.Save(config);
         }
 

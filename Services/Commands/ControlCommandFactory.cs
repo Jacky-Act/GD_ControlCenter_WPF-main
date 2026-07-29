@@ -172,8 +172,8 @@ namespace GD_ControlCenter_WPF.Services.Commands
         /// <returns>13 字节点火控制报文。</returns>
         public static byte[] CreateIgnition(int delayMs, short speed)
         {
-            int safeDelay = Math.Clamp(delayMs, 1000, 5000);
-            short safeSpeed = Math.Clamp(speed, (short)50, (short)100);
+            int safeDelay = Math.Clamp(delayMs, 100, 5000);
+            short safeSpeed = Math.Clamp(speed, (short)30, (short)100);
             short scaledSpeed = (short)(safeSpeed * 100);
 
             byte[] data = new byte[4];

@@ -213,8 +213,8 @@ namespace GD_ControlCenter_WPF.ViewModels
         /// </summary>
         partial void OnIgnitionSpeedChanged(short value)
         {
-            // 物理安全边界：50 - 100
-            if (value < 50) IgnitionSpeed = 50;
+            // 物理安全边界：30 - 100
+            if (value < 30) IgnitionSpeed = 30;
             else if (value > 100) IgnitionSpeed = 100;
             else
             {
@@ -390,7 +390,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         [RelayCommand]
         private void DecreaseIgnitionSpeed()
         {
-            IgnitionSpeed = (short)Math.Max(50, IgnitionSpeed - 1);
+            IgnitionSpeed = (short)Math.Max(30, IgnitionSpeed - 1);
         }
 
         #endregion

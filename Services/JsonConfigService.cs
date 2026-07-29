@@ -73,7 +73,10 @@ namespace GD_ControlCenter_WPF.Services
                     // 3. 原子化替换：将临时文件重命名为主配置文件
                     File.Move(tmpPath, _filePath, true);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[JsonConfigService.Save] 保存配置失败: {ex.Message}");
+                }
             }
         }
 
