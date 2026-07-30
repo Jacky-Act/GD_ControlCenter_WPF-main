@@ -66,7 +66,7 @@
             <!-- 上图：全谱 -->
             <materialDesign:Card Grid.Row="0" Margin="2.5,5" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
                 <Grid>
-                    <TextBlock Text="实时全谱监控 (Full Spectrum)" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="15,10" Opacity="0.5" Style="{StaticResource MaterialDesignSubtitle2TextBlock}"/>
+                    <TextBlock Text="实时全谱监控" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="15,10" Opacity="0.5" Style="{StaticResource MaterialDesignSubtitle2TextBlock}"/>
                     <ScottPlot:WpfPlot x:Name="SpecPlot" Margin="5,35,5,5"/>
                 </Grid>
             </materialDesign:Card>
@@ -74,7 +74,7 @@
             <!-- 下图：趋势 -->
             <materialDesign:Card Grid.Row="1" Margin="2.5,5" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
                 <Grid>
-                    <TextBlock Text="测量强度趋势 (Intensity Trend)" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="15,10" Opacity="0.5" Style="{StaticResource MaterialDesignSubtitle2TextBlock}"/>
+                    <TextBlock Text="测量强度趋势" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="15,10" Opacity="0.5" Style="{StaticResource MaterialDesignSubtitle2TextBlock}"/>
                     <ScottPlot:WpfPlot x:Name="TrendPlot" Margin="5,35,5,5"/>
                 </Grid>
             </materialDesign:Card>

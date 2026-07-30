@@ -618,7 +618,14 @@ namespace GD_ControlCenter_WPF.ViewModels
 
                         if (frame != null)
                         {
-                            cachedColumns.Add((groupHeader + $" [第{r + 1}次]", frame));
+                            // 深拷贝帧数据，防止异步 CSV 写入时原始对象被后续帧覆盖
+                            var frameCopy = new SpectralData
+                            {
+                                Wavelengths = frame.Wavelengths.ToArray(),
+                                Intensities = frame.Intensities.ToArray(),
+                                AcquisitionTime = frame.AcquisitionTime
+                            };
+                            cachedColumns.Add((groupHeader + $" [第{r + 1}次]", frameCopy));
 
                             // 提取波长强度
                             foreach (var conf in group)
@@ -673,7 +680,9 @@ namespace GD_ControlCenter_WPF.ViewModels
                 CurrentSample.Status = "已完成";
 
                 // 后台 CSV 落盘
-                string folder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Records");
+                string folder = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "GD_ControlCenter", "Records");
                 string filePath = System.IO.Path.Combine(folder, $"{CurrentSample.SampleName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 CurrentSample.CsvFilePath = filePath;
                 

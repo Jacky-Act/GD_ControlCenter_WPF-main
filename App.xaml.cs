@@ -92,7 +92,9 @@ namespace GD_ControlCenter_WPF
         {
             try
             {
-                string recordsDir = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Records");
+                string recordsDir = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "GD_ControlCenter", "Records");
                 if (!System.IO.Directory.Exists(recordsDir)) return;
 
                 var allCsvs = System.IO.Directory.GetFiles(recordsDir, "*.csv");

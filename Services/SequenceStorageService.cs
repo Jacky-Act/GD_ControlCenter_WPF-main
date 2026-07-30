@@ -8,7 +8,9 @@ namespace GD_ControlCenter_WPF.Services
 {
     public class SequenceStorageService
     {
-        private readonly string _folderPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sequences");
+        private readonly string _folderPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "GD_ControlCenter", "Sequences");
 
         public SequenceStorageService()
         {

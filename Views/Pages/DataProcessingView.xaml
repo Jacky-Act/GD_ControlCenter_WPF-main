@@ -232,10 +232,10 @@
 
                     <DataGrid Grid.Row="1" ItemsSource="{Binding FilteredResults}" AutoGenerateColumns="False" IsReadOnly="True">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="样品名称" Binding="{Binding SampleName}" Width="1.5*"/>
+                            <DataGridTextColumn Header="样品名称" Binding="{Binding SampleName}" Width="*"/>
                             <DataGridTextColumn Header="测量强度" Binding="{Binding Intensity, StringFormat={}{0:F0}}" Width="*"/>
-                            <DataGridTextColumn Header="相对偏差" Binding="{Binding RSD, StringFormat=± {0:F2}%}" Width="0.8*"/>
-                            <DataGridTextColumn Header="算得浓度" Binding="{Binding CalculatedConc}" 
+                            <DataGridTextColumn Header="相对偏差" Binding="{Binding RSD, StringFormat=± {0:F2}%}" Width="1.2*" MinWidth="80"/>
+                            <DataGridTextColumn Header="算得浓度" Binding="{Binding CalculatedConc}"
                                                 Width="*" FontWeight="Bold" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
                         </DataGrid.Columns>
                     </DataGrid>

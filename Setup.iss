@@ -3,7 +3,7 @@
 ; Non-commercial use only
 
 #define MyAppName "GD_ControlCenter_WPF"
-#define MyAppVersion "1.0.6"
+#define MyAppVersion "1.0.7"
 #define MyAppPublisher "放电组开发人员"
 #define MyAppExeName "GD_ControlCenter_WPF.exe"
 

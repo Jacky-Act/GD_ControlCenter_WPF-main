@@ -1,4 +1,4 @@
-﻿<Window x:Class="GD_ControlCenter_WPF.Views.Dialogs.Platform3DWindow"
+<Window x:Class="GD_ControlCenter_WPF.Views.Dialogs.Platform3DWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
@@ -39,28 +39,51 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="1.5*"/>
-            <ColumnDefinition Width="1*"/>
-        </Grid.ColumnDefinitions>
 
-        <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Background="#F3E5F5" CornerRadius="4" Padding="10,6" Margin="0,0,0,15">
+        <!-- Row 0: 状态栏 -->
+        <Border Grid.Row="0" Background="#F3E5F5" CornerRadius="4" Padding="10,6" Margin="0,0,0,10">
             <StackPanel Orientation="Horizontal">
                 <materialDesign:PackIcon Kind="InformationOutline" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource PurpleThemeBrush}"/>
                 <TextBlock Text="{Binding CalibrationStatus}" VerticalAlignment="Center" FontSize="14" FontWeight="Medium" Foreground="#4A148C" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
 
-        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,20,10">
-            <TextBlock Text="实时坐标监测" Style="{StaticResource MaterialDesignBody2TextBlock}" Opacity="0.6" Margin="0,0,0,12"/>
-            <Grid>
+        <!-- Row 1: 统一的列对齐网格，上下两排共享同一个列结构 -->
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- === 上排：坐标监测 + 自动化校准 === -->
+
+            <!-- 标题行 -->
+            <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
+                       Text="实时坐标监测" Style="{StaticResource MaterialDesignBody2TextBlock}"
+                       Opacity="0.6" Margin="0,0,0,12"/>
+            <TextBlock Grid.Row="0" Grid.Column="3" Grid.ColumnSpan="2"
+                       Text="自动化校准" Style="{StaticResource MaterialDesignBody2TextBlock}"
+                       Opacity="0.6" Margin="0,0,0,12"/>
+
+            <!-- 坐标显示 -->
+            <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock Text="X" FontWeight="Bold" FontSize="18" VerticalAlignment="Bottom" Margin="0,0,4,0"/>
                     <TextBlock Text="{Binding CurrentX, StringFormat={}{0:F0}}" FontSize="20" FontWeight="Bold" Foreground="Black" VerticalAlignment="Bottom"/>
                     <TextBlock Text="{Binding MaxX, StringFormat=/{0:F0}}" FontSize="12" Opacity="0.6" VerticalAlignment="Bottom" Margin="2,0,0,3"/>
@@ -72,68 +95,62 @@
                     <TextBlock Text="{Binding MaxY, StringFormat=/{0:F0}}" FontSize="12" Opacity="0.6" VerticalAlignment="Bottom" Margin="2,0,0,3"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,10,0">
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock Text="Z" FontWeight="Bold" FontSize="18" VerticalAlignment="Bottom" Margin="0,0,4,0"/>
                     <TextBlock Text="{Binding CurrentZ, StringFormat={}{0:F0}}" FontSize="20" FontWeight="Bold" Foreground="Black" VerticalAlignment="Bottom"/>
                     <TextBlock Text="{Binding MaxZ, StringFormat=/{0:F0}}" FontSize="12" Opacity="0.6" VerticalAlignment="Bottom" Margin="2,0,0,3"/>
                 </StackPanel>
             </Grid>
-        </StackPanel>
 
-        <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right">
-            <TextBlock Text="自动化校准" Style="{StaticResource MaterialDesignBody2TextBlock}" Opacity="0.6" Margin="0,0,0,12"/>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <!-- 自动化校准控件 -->
+            <ComboBox Grid.Row="1" Grid.Column="3"
+                      ItemsSource="{Binding PeakWavelengths}" SelectedItem="{Binding SelectedPeakWavelength}"
+                      materialDesign:HintAssist.Hint="目标波长 (nm)" Width="100"
+                      HorizontalAlignment="Left" Margin="0,0,10,0" VerticalAlignment="Center"
+                      Style="{StaticResource MaterialDesignFloatingHintComboBox}"/>
 
-                <ComboBox Grid.Column="0" ItemsSource="{Binding PeakWavelengths}" SelectedItem="{Binding SelectedPeakWavelength}"
-                          materialDesign:HintAssist.Hint="目标波长 (nm)" Width="120" HorizontalAlignment="Left" Margin="0,0,15,0" VerticalAlignment="Center"
-                          Style="{StaticResource MaterialDesignFloatingHintComboBox}"/>
+            <Button Grid.Row="1" Grid.Column="4"
+                    Command="{Binding StartCalibrationCommand}" Content="开始"
+                    Style="{StaticResource MaterialDesignRaisedButton}" Background="{StaticResource PurpleThemeBrush}"
+                    BorderBrush="{StaticResource PurpleThemeBrush}" IsEnabled="{Binding !IsCalibrating}"
+                    Width="100" Height="36" materialDesign:ButtonAssist.CornerRadius="4"
+                    VerticalAlignment="Center"/>
 
-                <Button Grid.Column="1" Command="{Binding StartCalibrationCommand}" Content="开始" 
-                        Style="{StaticResource MaterialDesignRaisedButton}" Background="{StaticResource PurpleThemeBrush}"
-                        BorderBrush="{StaticResource PurpleThemeBrush}" IsEnabled="{Binding !IsCalibrating}"
-                        Width="100" Height="36" materialDesign:ButtonAssist.CornerRadius="4"/>
-            </Grid>
-        </StackPanel>
+            <!-- === 分隔 === -->
 
-        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" Margin="0,15,0,0">
-            <TextBlock Text="手动步进调节" Style="{StaticResource MaterialDesignBody2TextBlock}" Opacity="0.6" Margin="0,0,0,10"/>
-            <Grid Height="36">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <!-- === 下排：手动步进调节 === -->
 
-                <Border Grid.Column="0" Background="#10000000" CornerRadius="6" Margin="0,0,20,0">
-                    <StackPanel Orientation="Horizontal">
-                        <RadioButton Content="X轴" GroupName="AxisGroup" IsChecked="{Binding IsXSelected}" Style="{StaticResource PurpleRadioButtonStyle}" Width="65" />
-                        <RadioButton Content="Y轴" GroupName="AxisGroup" IsChecked="{Binding IsYSelected}" Style="{StaticResource PurpleRadioButtonStyle}" Width="65"/>
-                        <RadioButton Content="Z轴" GroupName="AxisGroup" IsChecked="{Binding IsZSelected}" Style="{StaticResource PurpleRadioButtonStyle}" Width="65"/>
-                    </StackPanel>
-                </Border>
+            <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5"
+                       Text="手动步进调节" Style="{StaticResource MaterialDesignBody2TextBlock}"
+                       Opacity="0.6" Margin="0,0,0,10"/>
 
-                <Border Grid.Column="1" Background="#10000000" CornerRadius="6">
-                    <StackPanel Orientation="Horizontal">
-                        <RadioButton Content="{materialDesign:PackIcon Kind=Plus}" ToolTip="正向移动" GroupName="DirGroup" IsChecked="{Binding IsDirPositive}" Style="{StaticResource PurpleRadioButtonStyle}" Width="65"/>
-                        <RadioButton Content="{materialDesign:PackIcon Kind=Minus}" ToolTip="反向移动" GroupName="DirGroup" IsChecked="{Binding IsDirNegative}" Style="{StaticResource PurpleRadioButtonStyle}" Width="65"/>
-                    </StackPanel>
-                </Border>
-
-                <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="0,0,15,0" VerticalAlignment="Center">
-                    <TextBlock Text="步长" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" Opacity="0.8"/>
-                    <TextBox Text="{Binding StepDistance, UpdateSourceTrigger=PropertyChanged}" Width="80" TextAlignment="Center" VerticalAlignment="Center" Style="{StaticResource MaterialDesignTextBox}"/>
+            <Border Grid.Row="4" Grid.Column="0" Background="#10000000" CornerRadius="6" Margin="0,0,20,0" Height="36">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <RadioButton Content="X轴" GroupName="AxisGroup" IsChecked="{Binding IsXSelected}" Style="{StaticResource PurpleRadioButtonStyle}" Width="65" />
+                    <RadioButton Content="Y轴" GroupName="AxisGroup" IsChecked="{Binding IsYSelected}" Style="{StaticResource PurpleRadioButtonStyle}" Width="65"/>
+                    <RadioButton Content="Z轴" GroupName="AxisGroup" IsChecked="{Binding IsZSelected}" Style="{StaticResource PurpleRadioButtonStyle}" Width="65"/>
                 </StackPanel>
+            </Border>
 
-                <Button Grid.Column="4" Command="{Binding MoveCommand}" Style="{StaticResource MaterialDesignRaisedButton}" 
-                        Background="{StaticResource PurpleThemeBrush}" BorderBrush="{StaticResource PurpleThemeBrush}"
-                        Content="移动" Width="100" Height="36" materialDesign:ButtonAssist.CornerRadius="4"/>
-            </Grid>
-        </StackPanel>
+            <Border Grid.Row="4" Grid.Column="1" Background="#10000000" CornerRadius="6" Height="36">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <RadioButton Content="{materialDesign:PackIcon Kind=Plus}" ToolTip="正向移动" GroupName="DirGroup" IsChecked="{Binding IsDirPositive}" Style="{StaticResource PurpleRadioButtonStyle}" Width="65"/>
+                    <RadioButton Content="{materialDesign:PackIcon Kind=Minus}" ToolTip="反向移动" GroupName="DirGroup" IsChecked="{Binding IsDirNegative}" Style="{StaticResource PurpleRadioButtonStyle}" Width="65"/>
+                </StackPanel>
+            </Border>
+
+            <!-- C2: * 弹性填充，自动将"步长"推到与"自动化校准"对齐的位置 -->
+
+            <StackPanel Grid.Row="4" Grid.Column="3" Orientation="Horizontal" Margin="0,0,15,0" VerticalAlignment="Center">
+                <TextBlock Text="步长" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14" Opacity="0.8"/>
+                <TextBox Text="{Binding StepDistance, UpdateSourceTrigger=PropertyChanged}" Width="80" TextAlignment="Center" VerticalAlignment="Center" Style="{StaticResource MaterialDesignTextBox}"/>
+            </StackPanel>
+
+            <Button Grid.Row="4" Grid.Column="4"
+                    Command="{Binding MoveCommand}" Style="{StaticResource MaterialDesignRaisedButton}"
+                    Background="{StaticResource PurpleThemeBrush}" BorderBrush="{StaticResource PurpleThemeBrush}"
+                    Content="移动" Width="100" Height="36" materialDesign:ButtonAssist.CornerRadius="4"
+                    VerticalAlignment="Center"/>
+        </Grid>
     </Grid>
 </Window>

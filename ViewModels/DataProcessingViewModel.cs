@@ -755,7 +755,9 @@ namespace GD_ControlCenter_WPF.ViewModels
                     }
 
                     // 2. 拷贝所有的 CSV 文件
-                    string recordsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Records");
+                    string recordsDir = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "GD_ControlCenter", "Records");
                     HashSet<string> filesToCopy = new HashSet<string>();
 
                     // 2.1 收集当前测量序列中的所有样品 CSV
