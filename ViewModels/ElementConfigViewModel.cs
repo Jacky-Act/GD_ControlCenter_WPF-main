@@ -487,6 +487,21 @@ namespace GD_ControlCenter_WPF.ViewModels
         }
 
         [RelayCommand]
+        private void DeleteWavelength(WavelengthWrapper wrapper)
+        {
+            if (wrapper == null) return;
+            if (CurrentWavelengths.Contains(wrapper))
+            {
+                CurrentWavelengths.Remove(wrapper);
+                if (SelectedWavelengthWrapper == wrapper)
+                {
+                    SelectedWavelengthWrapper = null;
+                }
+                UpdateCanAddToConfigState();
+            }
+        }
+
+        [RelayCommand]
         private void DeleteFittingCurve(string curveName)
         {
             if (curveName == "测量校准曲线")
@@ -578,6 +593,30 @@ namespace GD_ControlCenter_WPF.ViewModels
             
             var config = db.Elements[SelectedElementSymbol];
             
+            var currentValues = CurrentWavelengths.Select(w => w.Value).ToHashSet();
+
+            // 检查是否有已被删除的波长同时存在于右侧“分析配置”中，并同步清理
+            var configsToRemove = SelectedConfigs
+                .Where(sc => sc.ElementName == SelectedElementSymbol && !currentValues.Contains(sc.Wavelength))
+                .ToList();
+
+            if (configsToRemove.Count > 0)
+            {
+                bool hasSequence = false;
+                try { hasSequence = WeakReferenceMessenger.Default.Send<SequenceStatusRequestMessage>().Response; } catch { }
+
+                if (hasSequence)
+                {
+                    WeakReferenceMessenger.Default.Send(new ClearSequenceRequestMessage());
+                }
+
+                foreach (var cToRemove in configsToRemove)
+                {
+                    SelectedConfigs.Remove(cToRemove);
+                }
+                WeakReferenceMessenger.Default.Send(new ActiveConfigsChangedMessage(SelectedConfigs.ToList()));
+            }
+
             var updatedWavelengths = new List<WavelengthConfig>();
             foreach (var wWrapper in CurrentWavelengths)
             {
@@ -593,6 +632,7 @@ namespace GD_ControlCenter_WPF.ViewModels
             }
             config.Wavelengths = updatedWavelengths;
             _elementDbService.Save(db);
+            UpdateCanAddToConfigState();
         }
 
         private void SaveCurrentWavelengthToDb()
