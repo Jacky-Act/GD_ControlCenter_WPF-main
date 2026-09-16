@@ -57,8 +57,6 @@ namespace GD_ControlCenter_WPF.ViewModels
         public double RSD { get; set; }
 
         public bool IsBlank => Type == SampleType.空白;
-
-        [ObservableProperty] private bool _isEnabled = true;
     }
 
     #endregion
@@ -353,14 +351,14 @@ namespace GD_ControlCenter_WPF.ViewModels
                     RSquaredText = "0.0000";
                     return;
                 }
-                plotPoints = StandardPoints.Where(p => p.IsEnabled && !p.IsBlank).ToList();
+                plotPoints = StandardPoints.Where(p => !p.IsBlank).ToList();
             }
             else
             {
                 // 使用当前标准点拟合
                 CanSaveCurve = true;
 
-                var validPoints = StandardPoints.Where(p => p.IsEnabled && !p.IsBlank).ToList();
+                var validPoints = StandardPoints.Where(p => !p.IsBlank).ToList();
                 if (validPoints.Count < 2)
                 {
                     EquationText = "拟合点不足";

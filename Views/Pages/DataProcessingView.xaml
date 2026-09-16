@@ -181,24 +181,6 @@
                                 <DataGridTextColumn Header="标准品名称" Binding="{Binding Name}" Width="1.5*" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="已知浓度" Binding="{Binding Concentration}" Width="*" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="响应强度" Binding="{Binding Intensity, StringFormat={}{0:F0}}" Width="*" IsReadOnly="True"/>
-                                <DataGridTemplateColumn Header="启用" Width="Auto">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <CheckBox IsChecked="{Binding IsEnabled, UpdateSourceTrigger=PropertyChanged}" 
-                                                      HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <CheckBox.Style>
-                                                    <Style TargetType="CheckBox" BasedOn="{StaticResource MaterialDesignCheckBox}">
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsBlank}" Value="True">
-                                                                <Setter Property="Visibility" Value="Hidden"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </CheckBox.Style>
-                                            </CheckBox>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
