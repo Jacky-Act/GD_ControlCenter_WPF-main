@@ -45,6 +45,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         [ObservableProperty] private ObservableCollection<SampleItemModel> _measurementSequence = new(); // 左侧样品序列
         [ObservableProperty] private SampleItemModel? _currentSample; // 当前正在测量或选中的样品
         [ObservableProperty] private bool _isCollecting; // 是否正在采集数据 (绑定到开始/停止按钮)
+        private string _currentBatchFolder = string.Empty; // 当前测量批次专属文件夹名称
         [ObservableProperty] private ObservableCollection<string> _pickedElements = new(); // 下拉框中显示的已识别元素名
         [ObservableProperty] private string _selectedElement = string.Empty; // 当前下拉框选中的元素
         
@@ -152,6 +153,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                             }
                         }
                     }
+                    _currentBatchFolder = string.Empty;
                     MeasurementSequence = new ObservableCollection<SampleItemModel>(m.Value);
                 }
                 else
@@ -679,10 +681,19 @@ namespace GD_ControlCenter_WPF.ViewModels
 
                 CurrentSample.Status = "已完成";
 
-                // 后台 CSV 落盘
-                string folder = System.IO.Path.Combine(
+                // 后台 CSV 落盘 (按批次建立子文件夹组织存储)
+                if (string.IsNullOrEmpty(_currentBatchFolder))
+                {
+                    _currentBatchFolder = $"{DateTime.Now:yyyyMMdd_HHmmss}_测量批次";
+                }
+                string baseDir = System.IO.Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "GD_ControlCenter", "Records");
+                string folder = System.IO.Path.Combine(baseDir, _currentBatchFolder);
+                if (!System.IO.Directory.Exists(folder))
+                {
+                    System.IO.Directory.CreateDirectory(folder);
+                }
                 string filePath = System.IO.Path.Combine(folder, $"{CurrentSample.SampleName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 CurrentSample.CsvFilePath = filePath;
                 

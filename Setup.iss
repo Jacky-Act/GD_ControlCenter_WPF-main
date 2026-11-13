@@ -3,7 +3,7 @@
 ; Non-commercial use only
 
 #define MyAppName "GD_ControlCenter_WPF"
-#define MyAppVersion "1.0.7"
+#define MyAppVersion "1.0.8"
 #define MyAppPublisher "放电组开发人员"
 #define MyAppExeName "GD_ControlCenter_WPF.exe"
 
@@ -20,7 +20,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
-OutputBaseFilename=GD_ControlCenter_Setup
+OutputBaseFilename=GD_ControlCenter_Setup_{#MyAppVersion}
 SetupIconFile=C:\Users\JackyAct\FileHub\05_Code\Build\GD_ControlCenter_WPF-main\Assets\AppIcon.ico
 SolidCompression=yes
 WizardStyle=modern dynamic

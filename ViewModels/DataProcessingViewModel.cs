@@ -55,6 +55,7 @@ namespace GD_ControlCenter_WPF.ViewModels
         public double Concentration { get; set; }
         public double Intensity { get; set; }
         public double RSD { get; set; }
+        public string CsvFilePath { get; set; } = string.Empty;
 
         public bool IsBlank => Type == SampleType.空白;
     }
@@ -223,7 +224,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                                 Type = sample.Type,
                                 Concentration = conc,
                                 Intensity = target.MeasuredIntensity,
-                                RSD = target.MeasuredRsd
+                                RSD = target.MeasuredRsd,
+                                CsvFilePath = sample.CsvFilePath
                             });
                         }
                     }
@@ -240,15 +242,34 @@ namespace GD_ControlCenter_WPF.ViewModels
                     if (savedCurve != null && savedCurve.Points != null && savedCurve.Points.Count > 0)
                     {
                         StandardPoints.Clear();
+                        string recordsDir = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                            "GD_ControlCenter", "Records");
+
                         foreach (var p in savedCurve.Points)
                         {
+                            string targetCsv = p.CsvFilePath;
+                            // 关联补全：若保存的绝对路径为空或文件已被移动，在 Records 目录搜索匹配的最新 CSV
+                            if (string.IsNullOrEmpty(targetCsv) || !File.Exists(targetCsv))
+                            {
+                                if (Directory.Exists(recordsDir))
+                                {
+                                    var matchedFiles = Directory.GetFiles(recordsDir, $"{p.Name}_*.csv", SearchOption.AllDirectories);
+                                    if (matchedFiles.Any())
+                                    {
+                                        targetCsv = matchedFiles.OrderByDescending(f => File.GetLastWriteTime(f)).First();
+                                    }
+                                }
+                            }
+
                             StandardPoints.Add(new StandardPointRow
                             {
                                 Name = p.Name,
                                 Type = p.Concentration == 0 ? SampleType.空白 : SampleType.标液,
                                 Concentration = p.Concentration,
                                 Intensity = p.Intensity,
-                                RSD = p.RSD
+                                RSD = p.RSD,
+                                CsvFilePath = targetCsv
                             });
                         }
                     }
@@ -472,7 +493,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                 Name = p.Name,
                 Concentration = p.Concentration,
                 Intensity = p.Intensity,
-                RSD = p.RSD
+                RSD = p.RSD,
+                CsvFilePath = p.CsvFilePath
             }).ToList();
 
             // 如果有空白，把空白点也存进去，以便画图时有 (0, y)
@@ -481,7 +503,8 @@ namespace GD_ControlCenter_WPF.ViewModels
                 Name = p.Name,
                 Concentration = 0,
                 Intensity = p.Intensity,
-                RSD = p.RSD
+                RSD = p.RSD,
+                CsvFilePath = p.CsvFilePath
             });
             pts.InsertRange(0, blanks);
 
@@ -527,18 +550,23 @@ namespace GD_ControlCenter_WPF.ViewModels
         [RelayCommand]
         private async Task GenerateReport()
         {
-            if (_rawFullSequence == null || _rawFullSequence.Count == 0)
+            bool hasFullSeq = _rawFullSequence != null && _rawFullSequence.Count > 0;
+            bool hasStdPoints = StandardPoints != null && StandardPoints.Count > 0;
+
+            if (!hasFullSeq && !hasStdPoints)
             {
                 MessageBox.Show("当前没有可导出的测量数据！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            // 要在全部测量完成后，才能保存这个
-            bool isAllCompleted = _rawFullSequence.All(s => s.Status == "已完成");
-            if (!isAllCompleted)
+            if (hasFullSeq)
             {
-                MessageBox.Show("测量尚未全部完成，请在全部测量完成后再导出报告！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                bool isAllCompleted = _rawFullSequence.All(s => s.Status == "已完成");
+                if (!isAllCompleted)
+                {
+                    MessageBox.Show("测量尚未全部完成，请在全部测量完成后再导出报告！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
             }
 
             var dialog = new SaveFileDialog
@@ -647,17 +675,23 @@ namespace GD_ControlCenter_WPF.ViewModels
         [RelayCommand]
         private async Task GenerateZipReport()
         {
-            if (_rawFullSequence == null || _rawFullSequence.Count == 0)
+            bool hasFullSeq = _rawFullSequence != null && _rawFullSequence.Count > 0;
+            bool hasStdPoints = StandardPoints != null && StandardPoints.Count > 0;
+
+            if (!hasFullSeq && !hasStdPoints)
             {
                 MessageBox.Show("当前没有可导出的测量数据！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            bool isAllCompleted = _rawFullSequence.All(s => s.Status == "已完成");
-            if (!isAllCompleted)
+            if (hasFullSeq)
             {
-                MessageBox.Show("测量尚未全部完成，请在全部测量完成后再导出报告！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                bool isAllCompleted = _rawFullSequence.All(s => s.Status == "已完成");
+                if (!isAllCompleted)
+                {
+                    MessageBox.Show("测量尚未全部完成，请在全部测量完成后再导出报告！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
             }
 
             if (_activeConfigs == null || _activeConfigs.Count == 0)
@@ -767,7 +801,7 @@ namespace GD_ControlCenter_WPF.ViewModels
                         {
                             if (Directory.Exists(recordsDir))
                             {
-                                var matchedFiles = Directory.GetFiles(recordsDir, $"{sample.SampleName}_*.csv");
+                                var matchedFiles = Directory.GetFiles(recordsDir, $"{sample.SampleName}_*.csv", SearchOption.AllDirectories);
                                 if (matchedFiles.Any())
                                     targetCsv = matchedFiles.OrderByDescending(f => File.GetLastWriteTime(f)).First();
                             }
@@ -786,14 +820,22 @@ namespace GD_ControlCenter_WPF.ViewModels
                         {
                             foreach (var stdPoint in report.StandardPoints)
                             {
-                                if (Directory.Exists(recordsDir))
+                                string targetCsv = stdPoint.CsvFilePath;
+                                if (string.IsNullOrEmpty(targetCsv) || !File.Exists(targetCsv))
                                 {
-                                    var matchedFiles = Directory.GetFiles(recordsDir, $"{stdPoint.Name}_*.csv");
-                                    if (matchedFiles.Any())
+                                    if (Directory.Exists(recordsDir))
                                     {
-                                        string targetCsv = matchedFiles.OrderByDescending(f => File.GetLastWriteTime(f)).First();
-                                        filesToCopy.Add(targetCsv);
+                                        var matchedFiles = Directory.GetFiles(recordsDir, $"{stdPoint.Name}_*.csv", SearchOption.AllDirectories);
+                                        if (matchedFiles.Any())
+                                        {
+                                            targetCsv = matchedFiles.OrderByDescending(f => File.GetLastWriteTime(f)).First();
+                                        }
                                     }
+                                }
+
+                                if (!string.IsNullOrEmpty(targetCsv) && File.Exists(targetCsv))
+                                {
+                                    filesToCopy.Add(targetCsv);
                                 }
                             }
                         }

@@ -97,7 +97,25 @@ namespace GD_ControlCenter_WPF.Services.Commands
             data[2] = (byte)(scaledSpeed / 256);    // 转速高位
             data[3] = (byte)(scaledSpeed % 256);    // 转速低位
 
-            return PackFrame(DeviceAddr.Controller, CommandType.PC_To_Controller, FunctionCode.PeristalticSetting, data);
+            // 生成完整报文帧
+            byte[] frame = PackFrame(DeviceAddr.Controller, CommandType.PC_To_Controller, FunctionCode.PeristalticSetting, data);
+
+            // ======================== 调试日志输出 ========================
+            string hexData = string.Join(" ", data.Select(b => b.ToString("X2")));
+            string hexFrame = string.Join(" ", frame.Select(b => b.ToString("X2")));
+            string decFrame = string.Join(", ", frame);
+
+            System.Diagnostics.Debug.WriteLine("---------------- [蠕动泵指令构建调试] ----------------");
+            System.Diagnostics.Debug.WriteLine($"入参: Speed={speed}(Safe={safeSpeed}), Clockwise={isClockwise}, Start={isStart}");
+            System.Diagnostics.Debug.WriteLine($"数据段 DataSegment (4 Bytes) : {hexData}");
+            System.Diagnostics.Debug.WriteLine($"完整报文 Frame Hex (13 Bytes) : {hexFrame}");
+            System.Diagnostics.Debug.WriteLine($"完整报文 Frame Dec (13 Bytes) : [{decFrame}]");
+            System.Diagnostics.Debug.WriteLine("------------------------------------------------------");
+            // =============================================================
+
+            return frame;
+
+            //return PackFrame(DeviceAddr.Controller, CommandType.PC_To_Controller, FunctionCode.PeristalticSetting, data);
         }
 
         /// <summary>

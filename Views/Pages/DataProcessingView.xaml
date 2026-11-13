@@ -149,17 +149,7 @@
             <!-- 1. 上半部分：标准点表格 -->
             <materialDesign:Card Grid.Row="0" Margin="0,0,0,8" UniformCornerRadius="8" materialDesign:ElevationAssist.Elevation="Dp2">
                 <Grid>
-                    <!-- 遮罩层，历史曲线模式下显示 -->
-                    <Border Background="#CCFFFFFF" Panel.ZIndex="5" 
-                            Visibility="{Binding CanSaveCurve, Converter={StaticResource InverseBoolToVisConverter}}">
-                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <materialDesign:PackIcon Kind="InformationOutline" Width="32" Height="32" HorizontalAlignment="Center" Opacity="0.6"/>
-                            <TextBlock Text="当前配置为使用 [历史保存曲线]" FontSize="14" FontWeight="Bold" Margin="0,8,0,4" HorizontalAlignment="Center" Opacity="0.8"/>
-                            <TextBlock Text="直接利用底层存储公式计算待测样品浓度" FontSize="12" Opacity="0.6" HorizontalAlignment="Center"/>
-                            <TextBlock Text="(无需重新进行标准点拟合)" FontSize="12" Opacity="0.6" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                    
+
                     <!-- 遮罩层，没有标液时显示 -->
                     <Border Background="#CCFFFFFF" Panel.ZIndex="6" 
                             Visibility="{Binding HasStandardSamples, Converter={StaticResource InverseBoolToVisConverter}}">

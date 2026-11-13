@@ -78,8 +78,8 @@ namespace GD_ControlCenter_WPF.Services
             _serialPortService = serialPortService;
             _protocolService = protocolService;
 
-            // 初始化轮询定时器：设为 3s 间隔（快查模式）
-            _pollingTimer = new System.Timers.Timer(3000);
+            // 初始化轮询定时器：设为 0.8s 间隔（快查模式）
+            _pollingTimer = new System.Timers.Timer(800);
             _pollingTimer.Elapsed += OnPollingTimerElapsed;
             _pollingTimer.AutoReset = true;
 

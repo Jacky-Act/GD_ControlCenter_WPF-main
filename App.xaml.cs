@@ -97,7 +97,7 @@ namespace GD_ControlCenter_WPF
                     "GD_ControlCenter", "Records");
                 if (!System.IO.Directory.Exists(recordsDir)) return;
 
-                var allCsvs = System.IO.Directory.GetFiles(recordsDir, "*.csv");
+                var allCsvs = System.IO.Directory.GetFiles(recordsDir, "*.csv", System.IO.SearchOption.AllDirectories);
                 if (allCsvs.Length == 0) return;
 
                 var inUseFiles = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -157,6 +157,15 @@ namespace GD_ControlCenter_WPF
                     if (fileInfo.LastWriteTime < threshold) // 如果生成时间距今已超过7天，杀
                     {
                         try { fileInfo.Delete(); } catch { }
+                    }
+                }
+
+                // 4. 清理由于文件被清理后留下的空批次文件夹
+                foreach (var subDir in System.IO.Directory.GetDirectories(recordsDir))
+                {
+                    if (System.IO.Directory.GetFiles(subDir, "*", System.IO.SearchOption.AllDirectories).Length == 0)
+                    {
+                        try { System.IO.Directory.Delete(subDir, true); } catch { }
                     }
                 }
             }
